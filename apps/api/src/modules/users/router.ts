@@ -11,7 +11,7 @@ usersRouter.use(allowRoles('ADMIN','MANAGER'));
 usersRouter.get('/', async (_req, res) => res.json(await db.user.findMany({ select: { id: true, name: true, email: true, role: true, active: true, createdAt: true }, orderBy: { name: 'asc' } })));
 usersRouter.post('/', allowRoles('ADMIN'), async (req, res) => {
   const d = z.object({ name: z.string().min(1).max(100), email: z.string().email(), password: z.string().min(10), role: z.enum(['ADMIN','MANAGER','RECEPTIONIST','HOUSEKEEPING']) }).parse(req.body);
-  const user = await db.user.create({ data: { ...d, email: d.email.toLowerCase(), passwordHash: await bcrypt.hash(d.password, 12) }, select: { id: true, name: true, email: true, role: true, active: true } });
+  const user = await db.user.create({ data: { name: d.name, email: d.email.toLowerCase(), role: d.role, passwordHash: await bcrypt.hash(d.password, 12) }, select: { id: true, name: true, email: true, role: true, active: true } });
   await logActivity(req, 'user.created', 'User', user.id, { role: user.role });
   res.status(201).json(user);
 });

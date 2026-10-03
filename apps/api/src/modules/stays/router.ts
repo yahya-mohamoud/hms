@@ -48,8 +48,9 @@ staysRouter.post('/check-in', allowRoles('ADMIN','MANAGER','RECEPTIONIST'), asyn
 
 staysRouter.post('/:id/move-room', allowRoles('ADMIN','MANAGER','RECEPTIONIST'), async (req, res) => {
   const { roomId, reason } = z.object({ roomId: z.string(), reason: z.string().max(500).optional() }).parse(req.body);
+  const stayId = req.params.id as string;
   const stay = await db.$transaction(async tx => {
-    const current = await tx.stay.findUnique({ where: { id: req.params.id } });
+    const current = await tx.stay.findUnique({ where: { id: stayId }, include: { room: true } });
     if (!current || current.status !== 'IN_HOUSE') throw new HttpError(404, 'Active stay not found');
     const room = await tx.room.findUnique({ where: { id: roomId } });
     if (!room || ['DIRTY','OUT_OF_ORDER'].includes(room.status)) throw new HttpError(409, 'Destination room is not ready');
