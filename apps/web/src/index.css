@@ -1446,6 +1446,32 @@ td small { display: block; font-size: 12px; color: #94a3b8; margin-top: 3px; }
   border-color: #6366f1;
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
 }
+.login-password-wrap {
+  position: relative;
+  display: block;
+}
+.login-form > label .login-password-wrap input {
+  width: 100%;
+  padding-right: 48px;
+}
+.login-password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 5px;
+  transform: translateY(-50%);
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #64748b;
+}
+.login-password-toggle:hover {
+  background: #f1f5f9;
+  color: #312e81;
+}
 .full { width: 100%; height: 44px; justify-content: center; margin-top: 6px; }
 .login-foot { text-align: center; font-size: 12px; color: #94a3b8; margin-top: 10px; }
 .recovery-link { justify-self: center; font-size: 13px; }
@@ -1891,9 +1917,27 @@ td small { display: block; font-size: 12px; color: #94a3b8; margin-top: 3px; }
 .dark-mode .stat-value,
 .dark-mode .modal-head h2,
 .dark-mode .room-number,
+.dark-mode .breadcrumbs strong,
+.dark-mode .arrival-person strong,
+.dark-mode .status-summary-row strong,
+.dark-mode .occupancy-footer strong,
+.dark-mode .mini-stay-name strong,
+.dark-mode .pulse-stat strong,
+.dark-mode .empty-state strong,
+.dark-mode .room-guest strong,
+.dark-mode .guest-profile-head h2,
 .dark-mode td strong,
 .dark-mode .metric-card strong,
-.dark-mode .quick-heading h3 {
+.dark-mode .guest-info-grid strong,
+.dark-mode .guest-detail-item strong,
+.dark-mode .inhouse-card h3,
+.dark-mode .inhouse-dates strong,
+.dark-mode .folio-mini strong,
+.dark-mode .payment-row strong,
+.dark-mode .quick-heading h3,
+.dark-mode .rank-row strong,
+.dark-mode .rank-row b,
+.dark-mode .staff-name strong {
   color: #f8fafc;
 }
 .dark-mode .page-title-row p,
@@ -1901,8 +1945,60 @@ td small { display: block; font-size: 12px; color: #94a3b8; margin-top: 3px; }
 .dark-mode .stat-label,
 .dark-mode td,
 .dark-mode .room-type,
-.dark-mode .metric-card span {
+.dark-mode .section-heading > div > span,
+.dark-mode .metric-card span,
+.dark-mode .arrival-person span,
+.dark-mode .arrival-date,
+.dark-mode .status-summary-row,
+.dark-mode .occupancy-footer span,
+.dark-mode .occupancy-footer small,
+.dark-mode .mini-stay-name small,
+.dark-mode .quick-heading span,
+.dark-mode .pulse-stat,
+.dark-mode .pulse-note,
+.dark-mode .empty-state,
+.dark-mode .empty-state > span:last-child,
+.dark-mode .month-control,
+.dark-mode .room-guest small,
+.dark-mode .guest-profile-head p,
+.dark-mode .guest-info-grid span,
+.dark-mode .guest-detail-item small,
+.dark-mode .inhouse-room,
+.dark-mode .inhouse-dates span,
+.dark-mode .folio-mini,
+.dark-mode .payment-row,
+.dark-mode .guest-match-list > strong,
+.dark-mode .guest-match-option small,
+.dark-mode .rank-row small {
   color: #94a3b8;
+}
+.dark-mode .field {
+  color: #cbd5e1;
+}
+.dark-mode .segmented button:not(.selected) {
+  color: #cbd5e1;
+}
+.dark-mode .date-picker input,
+.dark-mode .month-control strong {
+  color: #f8fafc;
+}
+.dark-mode .source-label {
+  background: #1f2937;
+  color: #cbd5e1;
+}
+.dark-mode .document-item {
+  background: #1f2937;
+  border-color: #374151;
+  color: #e2e8f0;
+}
+.dark-mode .document-item:hover {
+  background: #374151;
+}
+.dark-mode .document-item span:last-child {
+  color: #a5b4fc;
+}
+.dark-mode .guest-detail-item {
+  color: #a5b4fc;
 }
 .dark-mode .search-box input {
   color: #f8fafc;
