@@ -275,7 +275,13 @@ model DailyAudit {
   roomRevenue     Decimal  @db.Decimal(12, 2)
   otherRevenue    Decimal  @db.Decimal(12, 2)
   paymentsTotal   Decimal  @db.Decimal(12, 2)
-  outstandingTotal Decimal @db.Decimal(12, 2)
+  cashPayments          Decimal  @default(0) @db.Decimal(12, 2)
+  mobileMoneyPayments   Decimal  @default(0) @db.Decimal(12, 2)
+  cardPayments          Decimal  @default(0) @db.Decimal(12, 2)
+  bankTransferPayments  Decimal  @default(0) @db.Decimal(12, 2)
+  averageDailyRate      Decimal  @default(0) @db.Decimal(12, 2)
+  revenuePerAvailableRoom Decimal @default(0) @db.Decimal(12, 2)
+  outstandingTotal      Decimal  @db.Decimal(12, 2)
   closedById      String?
   closedAt        DateTime @default(now())
   notes           String?

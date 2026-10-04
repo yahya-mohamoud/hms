@@ -1,4 +1,4 @@
-const API = import.meta.env.VITE_API_URL ?? 'http://localhost:4000/api';
+const API = import.meta.env.VITE_API_URL ?? '/api';
 export type User = { id: string; name: string; email: string; role: string };
 export function token() { return localStorage.getItem('hms_token'); }
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {

@@ -23,23 +23,25 @@ documentsRouter.post('/:guestId/documents', allowRoles('ADMIN','MANAGER','RECEPT
   const file = req.file;
   if (!file) throw new HttpError(400, 'Choose an ID image');
   const { documentType } = z.object({ documentType: z.enum(['NATIONAL_ID','PASSPORT','DRIVERS_LICENSE','OTHER']).default('OTHER') }).parse(req.body);
-  if (!await db.guest.findUnique({ where: { id: req.params.guestId }, select: { id: true } })) throw new HttpError(404, 'Guest not found');
-  let width = 1000, quality = 68, output: Buffer;
-  do {
-    output = await sharp(file.buffer, { failOn: 'error' }).rotate().resize({ width, height: 1000, fit: 'inside', withoutEnlargement: true }).webp({ quality, effort: 5 }).toBuffer();
-    if (output.length <= 150 * 1024) break;
-    if (quality > 52) quality -= 5; else width = Math.max(600, Math.round(width * 0.85));
-  } while (width >= 600);
-  if (output!.length > 300 * 1024) throw new HttpError(413, 'Could not compress this image enough; please take a clearer photo');
-  const objectKey = `guest-ids/${req.params.guestId}/${randomUUID()}.webp`;
-  await s3.send(new PutObjectCommand({ Bucket: env.S3_BUCKET, Key: objectKey, Body: output!, ContentType: 'image/webp', CacheControl: 'private, no-store' }));
-  const document = await db.guestDocument.create({ data: { guestId: req.params.guestId, objectKey, originalName: file.originalname.slice(0, 200), sizeBytes: output!.length, documentType, uploadedById: req.user?.id } });
+  if (!await db.guest.findUnique({ where: { id: req.params.guestId as string }, select: { id: true } })) throw new HttpError(404, 'Guest not found');
+  let output: Buffer | undefined;
+  for (const width of [1000, 900, 800, 700, 600, 500, 400]) {
+    for (const quality of [68, 64, 60]) {
+      const candidate = await sharp(file.buffer, { failOn: 'error' }).rotate().resize({ width, withoutEnlargement: true }).webp({ quality, effort: 5 }).toBuffer();
+      if (candidate.length <= 150 * 1024) { output = candidate; break; }
+    }
+    if (output) break;
+  }
+  if (!output) throw new HttpError(413, 'Could not compress this image below 150 KB; retake the photo in good lighting');
+  const objectKey = `guest-ids/${req.params.guestId as string}/${randomUUID()}.webp`;
+  await s3.send(new PutObjectCommand({ Bucket: env.S3_BUCKET, Key: objectKey, Body: output, ContentType: 'image/webp', CacheControl: 'private, no-store' }));
+  const document = await db.guestDocument.create({ data: { guestId: req.params.guestId as string, objectKey, originalName: file.originalname.slice(0, 200), sizeBytes: output.length, documentType, uploadedById: req.user?.id } });
   await logActivity(req, 'guest.id_document_uploaded', 'GuestDocument', document.id, { sizeBytes: output!.length });
   res.status(201).json({ ...document, signedUrl: await getSignedUrl(s3, new GetObjectCommand({ Bucket: env.S3_BUCKET, Key: objectKey }), { expiresIn: 300 }) });
 });
 documentsRouter.get('/documents/:id/url', allowRoles('ADMIN','MANAGER','RECEPTIONIST'), async (req, res) => {
   if (!env.S3_BUCKET) throw new HttpError(503, 'Private ID image storage is not configured');
-  const doc = await db.guestDocument.findUnique({ where: { id: req.params.id } });
+  const doc = await db.guestDocument.findUnique({ where: { id: String(req.params.id) } });
   if (!doc) throw new HttpError(404, 'Document not found');
   res.json({ url: await getSignedUrl(s3, new GetObjectCommand({ Bucket: env.S3_BUCKET, Key: doc.objectKey }), { expiresIn: 300 }), expiresIn: 300 });
 });

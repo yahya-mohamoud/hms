@@ -1,6 +1,9 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import { existsSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { env } from './config/env.js';
 import { authenticate } from './middleware/auth.js';
 import { errorHandler, notFound } from './middleware/errors.js';
@@ -11,7 +14,6 @@ import { documentsRouter } from './modules/guests/documents-router.js';
 import { reservationsRouter } from './modules/reservations/router.js';
 import { staysRouter } from './modules/stays/router.js';
 import { billingRouter } from './modules/billing/router.js';
-import { housekeepingRouter } from './modules/housekeeping/router.js';
 import { reportsRouter } from './modules/reports/router.js';
 import { usersRouter } from './modules/users/router.js';
 
@@ -29,8 +31,14 @@ app.use('/api/guests', guestsRouter);
 app.use('/api/reservations', reservationsRouter);
 app.use('/api/stays', staysRouter);
 app.use('/api/billing', billingRouter);
-app.use('/api/housekeeping', housekeepingRouter);
 app.use('/api/reports', reportsRouter);
 app.use('/api/users', usersRouter);
+app.use('/api', notFound);
+const webDist = resolve(dirname(fileURLToPath(import.meta.url)), '../../../web/dist');
+const webIndex = resolve(webDist, 'index.html');
+if (existsSync(webIndex)) {
+  app.use(express.static(webDist, { index: false, maxAge: '1h' }));
+  app.get(/^(?!\/api(?:\/|$)).*/, (_req, res) => res.sendFile(webIndex));
+}
 app.use(notFound);
 app.use(errorHandler);

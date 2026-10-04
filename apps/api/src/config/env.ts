@@ -6,6 +6,7 @@ const envSchema = z.object({
   PORT: z.coerce.number().default(4000),
   JWT_SECRET: z.string().min(24),
   JWT_EXPIRES_IN: z.string().default('12h'),
+  ADMIN_RECOVERY_KEY: z.string().min(32).optional(),
   WEB_ORIGIN: z.string().default('http://localhost:5173'),
   S3_ENDPOINT: z.string().optional(),
   S3_REGION: z.string().default('us-east-1'),
