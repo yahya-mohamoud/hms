@@ -60,7 +60,7 @@ billingRouter.delete('/folio/:id/items/:itemId', async (req, res) => {
   res.json({ removed: true });
 });
 billingRouter.post('/folio/:id/payments', allowRoles('ADMIN','MANAGER','RECEPTIONIST'), async (req, res) => {
-  const d = z.object({ method: z.enum(['CASH','MOBILE_MONEY','CARD','BANK_TRANSFER']), amount: z.number().positive().refine(amount => Math.abs(amount * 100 - Math.round(amount * 100)) < 1e-8, 'Enter an amount with no more than two decimal places'), reference: z.string().max(100).optional(), note: z.string().max(500).optional() }).parse(req.body);
+  const d = z.object({ method: z.enum(['CASH','COOPAY_EBIRR','EBIRR_KAAFI','CBE_BANK','OTHER','MOBILE_MONEY','CARD','BANK_TRANSFER']), amount: z.number().positive().refine(amount => Math.abs(amount * 100 - Math.round(amount * 100)) < 1e-8, 'Enter an amount with no more than two decimal places'), reference: z.string().max(100).optional(), note: z.string().max(500).optional() }).parse(req.body);
   const payment = await db.$transaction(async tx => {
     const folio = await tx.folio.findUnique({ where: { id: String(req.params.id) }, include: { items: true, payments: true } });
     if (!folio) throw new HttpError(404, 'Folio not found');

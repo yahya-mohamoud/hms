@@ -16,7 +16,7 @@ usersRouter.post('/', allowRoles('ADMIN'), async (req, res) => {
   res.status(201).json(user);
 });
 usersRouter.patch('/:id', allowRoles('ADMIN'), async (req, res) => {
-  const d = z.object({ name: z.string().min(1).max(100).optional(), role: z.enum(['ADMIN','MANAGER','RECEPTIONIST','HOUSEKEEPING']).optional(), active: z.boolean().optional(), password: z.string().min(10).optional() }).parse(req.body);
+  const d = z.object({ name: z.string().min(1).max(100).optional(), role: z.enum(['ADMIN','MANAGER','RECEPTIONIST','HOUSEKEEPING']).optional(), active: z.boolean().optional(), password: z.string().min(10).max(200).optional() }).parse(req.body);
   if (String(req.params.id) === req.user?.id && d.active === false) throw new HttpError(400, 'You cannot disable your own account');
   const { password, ...rest } = d;
   const user = await db.user.update({ where: { id: String(req.params.id) }, data: { ...rest, ...(password ? { passwordHash: await bcrypt.hash(password, 12) } : {}) }, select: { id: true, name: true, email: true, role: true, active: true } });

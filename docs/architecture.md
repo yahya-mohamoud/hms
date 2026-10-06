@@ -96,15 +96,25 @@ When an authorized staff member asks to view a document, the API checks the docu
 
 Passwords are stored as bcrypt hashes. JWTs contain a user subject and are signed with a deployment secret. Each protected request resolves that subject against the active user row before setting the request identity. Role middleware enforces `ADMIN`, `MANAGER` and `RECEPTIONIST` access at route boundaries. The admin-only user API supports account activation, deactivation and deletion; inactive accounts fail authentication and existing JWTs fail on their next request. Legacy worker accounts remain manageable by admins but are blocked from signing in; the application has no worker or housekeeping task interface.
 
-Administrator password recovery is unauthenticated but verifies the submitted email belongs to an active `ADMIN` account and checks a deployment-only `ADMIN_RECOVERY_KEY` using a constant-time digest comparison. The key is not stored in PostgreSQL. Recovery is unavailable when the key is not configured, and this route cannot reset receptionist or worker accounts. Receptionists use the normal admin-managed password change path.
+An administrator sets or changes a recovery passphrase from the authenticated Team access page after confirming their current password. The API stores only a bcrypt hash in the admin's user row. The unauthenticated recovery route checks the supplied email, passphrase and active `ADMIN` role before replacing the password hash; attempts are throttled by IP and email. It cannot reset receptionist or worker accounts. Receptionists must ask an administrator to change their password.
 
 Important changes create `ActivityLog` rows with the actor, action, entity reference, request IP and optional JSON details. Audit writes are best-effort so an audit-storage issue does not turn a committed business operation into an apparent failure. Sensitive ID-image paths are not included in guest-profile responses; access uses a separate signed-URL route.
 
 ## 7. Configuration and runtime
 
-Configuration is read from environment variables and validated in `apps/api/src/config/env.ts`. The API needs a PostgreSQL connection URL, a strong JWT secret, a web-origin allowlist and a port. Set `ADMIN_RECOVERY_KEY` to enable admin password recovery. ID image upload additionally needs a private S3-compatible endpoint, bucket and credentials. The web app uses a same-origin `/api` path by default; `VITE_API_URL` can override it for a split deployment.
+Configuration is read from environment variables and validated in `apps/api/src/config/env.ts`. The API needs a PostgreSQL connection URL, a strong JWT secret, a web-origin allowlist and a port. ID image upload additionally needs a private S3-compatible endpoint, bucket and credentials. The web app uses a same-origin `/api` path by default; `VITE_API_URL` can override it for a split deployment.
 
 The API and PostgreSQL can run on a local hotel network so staff workflows do not depend on a public booking service or constant internet access. Object storage must also be reachable when an ID photo is uploaded; use a LAN object store where public connectivity is unreliable. The API has no in-memory business state, so multiple API instances can share the same PostgreSQL database and bucket if a larger deployment later requires that.
+
+## 8. Production deployment topology
+
+The default hosted topology keeps the React UI and Express API in one Render Node web service. The frontend is compiled into static assets during the build, and Express serves those assets alongside `/api` routes. This gives staff one origin, keeps the API URL same-origin, and avoids separate CORS/frontend deployment configuration for the initial small-hotel rollout.
+
+Supabase PostgreSQL is the durable system of record. Render supplies `DATABASE_URL` using Supabase's Session pooler over TLS. The Render pre-deploy step applies the checked-in Prisma migration history before the new app version starts. A database-aware readiness endpoint lets Render avoid routing traffic to an instance that cannot reach PostgreSQL. The initial seed hook provisions the 12 standard rooms and the first admin account; it is a bootstrap action, not a recurring migration.
+
+Cloudflare R2 is a private object store for resized WebP ID images. The API validates and compresses the image, writes the object using the S3-compatible API, and stores only its object key in PostgreSQL. When an authorized staff user requests the image, the API checks access and returns a short-lived signed URL. R2 credentials stay on the server and are never sent to the browser.
+
+Secrets and deployment-specific values are configured in Render environment variables. Production startup rejects a weak placeholder JWT secret or incomplete/non-R2 object-storage settings. Deployments should keep the database migration and app code compatible, back up PostgreSQL and R2 separately, and verify guest-image access after rollout. The hosted topology requires internet at the hotel; where connectivity is unreliable, the same app can instead run with PostgreSQL and an S3-compatible store reachable on the hotel LAN.
 
 ## 8. Extension points
 

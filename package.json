@@ -8,6 +8,7 @@
     "build": "npm --workspace apps/web run build && npm --workspace apps/api run build",
     "db:generate": "npm --workspace apps/api run db:generate",
     "db:migrate": "npm --workspace apps/api run db:migrate",
+    "db:migrate:deploy": "npm --workspace apps/api run db:migrate:deploy",
     "db:seed": "npm --workspace apps/api run db:seed"
   }
 }

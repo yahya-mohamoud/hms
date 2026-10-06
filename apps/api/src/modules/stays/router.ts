@@ -26,7 +26,7 @@ staysRouter.post('/check-in', allowRoles('ADMIN','MANAGER','RECEPTIONIST'), asyn
     if (!guest) throw new HttpError(404, 'Guest not found');
     const room = await tx.room.findUnique({ where: { id: d.roomId } });
     if (!room || !room.active) throw new HttpError(404, 'Room not found');
-    if (room.status === 'OUT_OF_ORDER' || room.status === 'DIRTY') throw new HttpError(409, 'Room must be clean and in service before check-in');
+    if (!['AVAILABLE','CLEAN','INSPECTED'].includes(room.status)) throw new HttpError(409, 'Room is not available for check-in');
     const occupied = await tx.stay.findFirst({ where: { roomId: room.id, status: 'IN_HOUSE' } });
     if (occupied) throw new HttpError(409, 'Room is occupied');
     const today = new Date(new Date().toISOString().slice(0,10));
@@ -39,7 +39,7 @@ staysRouter.post('/check-in', allowRoles('ADMIN','MANAGER','RECEPTIONIST'), asyn
     const stay = await tx.stay.create({ data: { reservationId: reservation?.id, guestId: guest.id, roomId: room.id, expectedCheckOut: d.expectedCheckOut, nightlyRate, adults: d.adults, children: d.children, notes: d.notes } });
     const folio = await tx.folio.create({ data: { folioNumber: `F-${Date.now().toString(36).toUpperCase()}`, stayId: stay.id } });
     await tx.folioItem.create({ data: { folioId: folio.id, type: 'ROOM_CHARGE', description: `Room ${room.number} × ${nights} night${nights === 1 ? '' : 's'}`, quantity: nights, unitPrice: stay.nightlyRate, amount: Number(stay.nightlyRate) * nights, postedById: req.user?.id } });
-    if (reservation && Number(reservation.depositAmount) > 0) await tx.payment.create({ data: { folioId: folio.id, method: reservation.depositMethod, amount: reservation.depositAmount, note: 'Reservation deposit', receivedById: req.user?.id } });
+    if (reservation && Number(reservation.depositAmount) > 0) await tx.payment.create({ data: { folioId: folio.id, method: reservation.depositMethod, amount: reservation.depositAmount, receivedAt: reservation.depositReceivedAt ?? new Date(), note: 'Reservation deposit', receivedById: req.user?.id } });
     await tx.room.update({ where: { id: room.id }, data: { status: 'OCCUPIED' } });
     if (reservation) await tx.reservation.update({ where: { id: reservation.id }, data: { status: 'CHECKED_IN', roomId: room.id } });
     if (d.idType || d.idNumber) await tx.guest.update({ where: { id: guest.id }, data: { idType: d.idType, idNumber: d.idNumber } });

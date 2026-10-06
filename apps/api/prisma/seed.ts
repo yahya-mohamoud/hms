@@ -5,6 +5,9 @@ import { PrismaClient, RoomStatus, UserRole } from '@prisma/client';
 const db = new PrismaClient();
 const roomTypes = ['Standard','Standard','Standard','Standard','Twin','Twin','Twin','Deluxe','Deluxe','Deluxe','Family','Family'];
 async function main() {
+  if (process.env.NODE_ENV === 'production' && (!process.env.ADMIN_EMAIL || !process.env.ADMIN_PASSWORD || process.env.ADMIN_PASSWORD === 'ChangeMe123!')) {
+    throw new Error('Set a unique ADMIN_EMAIL and strong ADMIN_PASSWORD before seeding production');
+  }
   for (let i = 1; i <= 12; i++) {
     const number = String(i).padStart(3, '0');
     await db.room.upsert({ where: { number }, update: {}, create: { number, type: roomTypes[i - 1]!, floor: i <= 6 ? 1 : 2, capacity: roomTypes[i - 1] === 'Family' ? 4 : 2, baseRate: 0, status: RoomStatus.AVAILABLE } });

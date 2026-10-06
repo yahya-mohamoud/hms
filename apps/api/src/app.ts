@@ -5,6 +5,7 @@ import { existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { env } from './config/env.js';
+import { db } from './lib/db.js';
 import { authenticate } from './middleware/auth.js';
 import { errorHandler, notFound } from './middleware/errors.js';
 import { authRouter } from './modules/auth/router.js';
@@ -14,6 +15,7 @@ import { documentsRouter } from './modules/guests/documents-router.js';
 import { reservationsRouter } from './modules/reservations/router.js';
 import { staysRouter } from './modules/stays/router.js';
 import { billingRouter } from './modules/billing/router.js';
+import { expensesRouter } from './modules/expenses/router.js';
 import { reportsRouter } from './modules/reports/router.js';
 import { usersRouter } from './modules/users/router.js';
 
@@ -23,6 +25,14 @@ app.use(helmet());
 app.use(cors({ origin: env.WEB_ORIGIN.split(',').map(x => x.trim()), credentials: false }));
 app.use(express.json({ limit: '1mb' }));
 app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
+app.get('/api/health/ready', async (_req, res) => {
+  try {
+    await db.$queryRaw`SELECT 1`;
+    res.json({ status: 'ready' });
+  } catch {
+    res.status(503).json({ status: 'unavailable' });
+  }
+});
 app.use('/api/auth', authRouter);
 app.use('/api', authenticate);
 app.use('/api/rooms', roomsRouter);
@@ -31,6 +41,7 @@ app.use('/api/guests', guestsRouter);
 app.use('/api/reservations', reservationsRouter);
 app.use('/api/stays', staysRouter);
 app.use('/api/billing', billingRouter);
+app.use('/api/expenses', expensesRouter);
 app.use('/api/reports', reportsRouter);
 app.use('/api/users', usersRouter);
 app.use('/api', notFound);

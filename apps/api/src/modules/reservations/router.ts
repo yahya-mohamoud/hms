@@ -31,7 +31,7 @@ reservationsRouter.post('/', allowRoles('ADMIN','MANAGER','RECEPTIONIST'), async
       const occupied = await tx.stay.findFirst({ where: { roomId: d.roomId, status: 'IN_HOUSE', expectedCheckOut: { gt: d.arrivalDate } } });
       if (occupied) throw new HttpError(409, 'Room is occupied during those dates');
     }
-    return tx.reservation.create({ data: { confirmationCode: code(), guestId: guest.id, source: d.source, groupCode: d.groupCode, groupName: d.groupName, arrivalDate: d.arrivalDate, departureDate: d.departureDate, adults: d.adults, children: d.children, roomType: d.roomType, roomId: d.roomId, nightlyRate: d.nightlyRate, depositAmount: d.depositAmount, depositMethod: d.depositMethod, notes: d.notes, createdById: req.user?.id }, include: { guest: true, room: true } });
+    return tx.reservation.create({ data: { confirmationCode: code(), guestId: guest.id, source: d.source, groupCode: d.groupCode, groupName: d.groupName, arrivalDate: d.arrivalDate, departureDate: d.departureDate, adults: d.adults, children: d.children, roomType: d.roomType, roomId: d.roomId, nightlyRate: d.nightlyRate, depositAmount: d.depositAmount, depositMethod: d.depositMethod, depositReceivedAt: d.depositAmount > 0 ? new Date() : null, notes: d.notes, createdById: req.user?.id }, include: { guest: true, room: true } });
   }, { isolationLevel: 'Serializable' });
   await logActivity(req, 'reservation.created', 'Reservation', reservation.id, { source: reservation.source });
   res.status(201).json(reservation);
@@ -52,7 +52,9 @@ reservationsRouter.patch('/:id', allowRoles('ADMIN','MANAGER','RECEPTIONIST'), a
     const occupied = await db.stay.findFirst({ where: { roomId, status: 'IN_HOUSE', expectedCheckOut: { gt: arrivalDate } } });
     if (occupied) throw new HttpError(409, 'Room is occupied during those dates');
   }
-  const updated = await db.reservation.update({ where: { id: old.id }, data: { ...d, arrivalDate, departureDate, roomId } });
+  const depositAmountChanged = d.depositAmount !== undefined && depositAmount !== Number(old.depositAmount);
+  const depositReceivedAt = depositAmountChanged ? depositAmount > 0 ? new Date() : null : old.depositReceivedAt;
+  const updated = await db.reservation.update({ where: { id: old.id }, data: { ...d, arrivalDate, departureDate, roomId, depositReceivedAt } });
   await logActivity(req, 'reservation.updated', 'Reservation', old.id, { changed: Object.keys(d) });
   res.json(updated);
 });
