@@ -1717,6 +1717,19 @@ td small { display: block; font-size: 12px; color: #94a3b8; margin-top: 3px; }
 .revenue-card, .repeat-card, .activity-card {
   margin-bottom: 24px;
 }
+.activity-filter-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 0 20px 16px;
+}
+.activity-filter-row .field { width: min(100%, 340px); }
+.activity-filter-count {
+  padding-bottom: 11px;
+  color: #64748b;
+  font-size: 12px;
+}
 .report-filters {
   display: flex;
   align-items: flex-end;
@@ -2038,6 +2051,7 @@ td small { display: block; font-size: 12px; color: #94a3b8; margin-top: 3px; }
 .dark-mode .field {
   color: #cbd5e1;
 }
+.dark-mode .activity-filter-count { color: #94a3b8; }
 .dark-mode .segmented button:not(.selected) {
   color: #cbd5e1;
 }
@@ -2682,6 +2696,9 @@ td small { display: block; font-size: 12px; color: #94a3b8; margin-top: 3px; }
     gap: 8px;
   }
   .card { padding: 14px; }
+  .activity-filter-row { align-items: stretch; flex-direction: column; padding: 0 8px 14px; }
+  .activity-filter-row .field { width: 100%; }
+  .activity-filter-count { padding-bottom: 0; }
   .login-form-side { padding: 16px 12px; }
   .login-form { padding: 24px 16px; }
 }
