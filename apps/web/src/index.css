@@ -794,6 +794,11 @@ button:disabled { opacity: 0.55; cursor: not-allowed; }
 .table-card { padding: 0; overflow: hidden; }
 .table-card .section-heading { padding: 22px 24px 16px; margin: 0; }
 .table-wrap { width: 100%; overflow-x: auto; }
+.table-expand {
+  display: flex;
+  justify-content: center;
+  padding: 10px 20px 4px;
+}
 table { width: 100%; border-collapse: collapse; text-align: left; }
 th {
   font-size: 11px;

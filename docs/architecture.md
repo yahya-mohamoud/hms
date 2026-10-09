@@ -1,6 +1,38 @@
-# System Architecture
+# Hotel Management System: Core Functionality and Architecture
 
-This document describes how the application is structured and how requests and data move through it. It focuses on implementation boundaries and technical decisions rather than a catalogue of hotel workflows.
+This document explains what the hotel system does, how its main workflows behave, and how the software is structured and deployed.
+
+## Core functionality
+
+The system supports the daily front-desk and management work of a small, 12-room hotel. Receptionists and managers use it to manage rooms, guests, stays, reservations, payments and expenses. Administrators also manage staff access. It is an internal hotel operations system: it has no public booking site, online reservation flow, channel manager or OTA integration.
+
+### Rooms and availability
+
+The room board shows the 12 rooms grouped by type, each room's type price, room status and stay count. Staff can filter the board to see free rooms, occupied rooms, or rooms that need attention. The statuses are Available, Occupied, Dirty, Clean, Inspected and Out of Order. Reception or management updates room readiness directly; this version has no housekeeping worker task workflow.
+
+### Guests and reservations
+
+Guest profiles hold contact and identity details, preferences, notes, ID-document references and a history of stays. Before creating a profile, staff can search existing guests and reuse a matching profile to avoid duplicate records. Reservations can be entered for walk-ins, phone bookings and groups, and include dates, guests, room/type, nightly rate, deposits and cancellation notes. The daily/monthly reservation board gives staff a visual view of planned arrivals and room assignments; selecting a guest opens their profile.
+
+### Check-in, stay and check-out
+
+Staff can check in a reservation or start a walk-in by selecting an available room. Check-in creates the active stay and guest folio, then marks the room Occupied. Staff can move an in-house guest to another available room while retaining a room-move history. Check-out requires the folio balance to be settled to zero, closes the stay and marks the room Dirty so reception can update it when ready.
+
+### Folios, payments and expenses
+
+Each stay has a folio for room charges and extras. Staff record payments against the folio, and the system calculates the outstanding balance and can produce a printable invoice. Payment tenders include Cash, Coopay Ebirr, Ebirr Kaafi, CBE Bank and Other, with additional legacy tender types supported in the data model. Staff can record operating expenses by date, category, amount and payment method. Reports summarize received payments by tender, income, expenses and the resulting net amount for a selected reporting period or month.
+
+### Dashboard, reports and guest insights
+
+The dashboard summarizes today's arrivals, departures, occupancy, room statuses and payments. Reports cover revenue, occupancy, payment-method totals and a saved daily-close snapshot. Guest insights rank guests by stays, nights and revenue, identify repeat guests, and show each guest's total stays, nights, spending and latest stay date.
+
+### Staff access
+
+Receptionist, Manager and Admin roles are enforced by the API. Admins can create, activate, deactivate and delete staff accounts, and change staff passwords. An administrator can set a recovery passphrase while signed in and use it with their email to recover a forgotten admin password. The UI does not provide sign-in or task management for housekeeping workers.
+
+### Guest ID images
+
+During check-in, staff can upload a guest ID photo. The API resizes and converts it to WebP, targeting a maximum width of 1000 pixels and a file size below 150 KB. The image bytes are stored in private object storage rather than PostgreSQL. Authorized staff receive a short-lived signed link to view the image.
 
 ## 1. System shape
 
@@ -116,14 +148,14 @@ Cloudflare R2 is a private object store for resized WebP ID images. The API vali
 
 Secrets and deployment-specific values are configured in Render environment variables. Production startup rejects a weak placeholder JWT secret or incomplete/non-R2 object-storage settings. Deployments should keep the database migration and app code compatible, back up PostgreSQL and R2 separately, and verify guest-image access after rollout. The hosted topology requires internet at the hotel; where connectivity is unreliable, the same app can instead run with PostgreSQL and an S3-compatible store reachable on the hotel LAN.
 
-## 8. Extension points
+## 9. Extension points
 
 - Add domain logic as a module-level use case first; extract a `services/` or repository layer when logic is shared, grows substantially, or needs independent testing.
 - Add schema changes in Prisma, generate a reviewed migration, and update the owning API module and frontend client types together.
 - Add asynchronous or external integrations behind a new adapter/module rather than coupling them to Express handlers or Prisma models.
 - Keep generated guest and operational reports as database queries while the data volume remains small; introduce cached projections only when measured query cost justifies the extra consistency work.
 
-## 9. Financial and operational safeguards
+## 10. Financial and operational safeguards
 
 Folio balances are derived from signed charge rows and received payments. Payment recording runs in a serializable transaction, rejects closed folios and amounts above the remaining balance, and checkout verifies that the balance is exactly zero before closing the folio. Charge corrections are limited to open folios and create activity-log entries; payments are retained as append-only records. A room transfer records the move and marks the previous room Dirty; the front desk manages room readiness from the room board. The transfer posts the higher-rate difference for remaining nights if needed. A lower-rate room keeps the existing contracted rate because this first version does not record cash refunds.
 
