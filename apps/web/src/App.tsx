@@ -1,403 +1,5707 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
-import { BedDouble, CalendarDays, ChartNoAxesCombined, Check, ChevronDown, ChevronLeft, ChevronRight, ClipboardList, CreditCard, DoorOpen, Eye, EyeOff, FileText, LogOut, Menu, Plus, Search, Sparkles, Users, X, Building2, Moon, Sun, CircleDollarSign, UserRound, Phone, Mail, MapPin, IdCard, Trash2, Pencil, Trophy, Receipt } from 'lucide-react';
-import { api, patch, post, type User } from './lib/api';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react";
+import {
+  BedDouble,
+  CalendarDays,
+  ChartNoAxesCombined,
+  Check,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  ClipboardList,
+  CreditCard,
+  DoorOpen,
+  Eye,
+  EyeOff,
+  FileText,
+  LogOut,
+  Menu,
+  Plus,
+  Search,
+  Sparkles,
+  Users,
+  X,
+  Building2,
+  Moon,
+  Sun,
+  CircleDollarSign,
+  UserRound,
+  Phone,
+  Mail,
+  MapPin,
+  IdCard,
+  Trash2,
+  Pencil,
+  Trophy,
+  Receipt,
+} from "lucide-react";
+import { api, patch, post, type User } from "./lib/api";
 
-type Room = { id: string; number: string; type: string; status: string; baseRate: number | string; floor?: number | null; capacity?: number; stayCount?: number; notes?: string | null; stays?: Stay[] };
-type Guest = { id: string; firstName: string; lastName: string; phone?: string | null; email?: string | null; nationality?: string | null; idType?: string | null; idNumber?: string | null; notes?: string | null; preferences?: string | null };
-type Reservation = { id: string; confirmationCode: string; arrivalDate: string; departureDate: string; source: string; status: string; nightlyRate: number | string; depositAmount: number | string; depositMethod?: string; cancellationNote?: string | null; guest: Guest; room?: Room | null; roomId?: string | null; roomType?: string | null; groupName?: string | null; groupCode?: string | null };
-type Stay = { id: string; status: string; guest: Guest; room: Room; checkInAt: string; expectedCheckOut: string; nightlyRate: number | string; folio?: { id: string; folioNumber: string; items: { amount: number | string }[]; payments: { amount: number | string }[] } | null };
-type Invoice = { hotel: string; folioNumber: string; guest: Guest; room: Room; checkIn: string; checkOut?: string | null; items: { description: string; quantity: number | string; unitPrice: number | string; amount: number | string }[]; payments: { method: string; reference?: string | null; receivedAt: string; amount: number | string }[]; total: number | string; paid: number | string; balance: number | string };
-type Dashboard = { date: string; arrivals: Reservation[]; departures: Stay[]; occupancy: { occupied: number; total: number; percent: number }; inHouse: number; paymentsToday: number; rooms: Room[] };
-type Expense = { id:string; category:string; description:string; payee?:string|null; amount:number|string; paymentMethod:string; reference?:string|null; notes?:string|null; expenseDate:string; voidedAt?:string|null; voidReason?:string|null };
-type Page = 'Overview' | 'Rooms' | 'Reservations' | 'Guests' | 'In-house' | 'Expenses' | 'Reports' | 'Team';
-const statusLabels: Record<string, string> = { CASH: 'Cash', COOPAY_EBIRR: 'Coopay Ebirr', EBIRR_KAAFI: 'Ebirr Kaafi', CBE_BANK: 'CBE Bank', OTHER: 'Other', MOBILE_MONEY: 'Mobile money', CARD: 'Card', BANK_TRANSFER: 'Bank transfer', AVAILABLE: 'Available', OCCUPIED: 'Occupied', DIRTY: 'Dirty', CLEAN: 'Clean', INSPECTED: 'Inspected', OUT_OF_ORDER: 'Out of order', CONFIRMED: 'Confirmed', PENDING: 'Pending', CHECKED_IN: 'Checked in', CHECKED_OUT: 'Checked out', CANCELLED: 'Cancelled', OPEN: 'Open', IN_PROGRESS: 'In progress', DONE: 'Done', HOUSEKEEPING: 'Worker account' };
-const nav: { label: Page; icon: typeof DoorOpen }[] = [{ label: 'Overview', icon: ChartNoAxesCombined }, { label: 'Rooms', icon: BedDouble }, { label: 'Reservations', icon: CalendarDays }, { label: 'Guests', icon: Users }, { label: 'In-house', icon: DoorOpen }, { label: 'Expenses', icon: Receipt }, { label: 'Reports', icon: FileText }, { label: 'Team', icon: ClipboardList }];
-const today = () => new Date().toLocaleDateString('en-CA');
-const money = (value: number | string | undefined) => new Intl.NumberFormat(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(Number(value ?? 0));
-const dateLabel = (value?: string | null, options: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' }) => value ? new Date(`${value.slice(0,10)}T12:00:00`).toLocaleDateString(undefined, options) : '—';
+type Room = {
+  id: string;
+  number: string;
+  type: string;
+  status: string;
+  baseRate: number | string;
+  floor?: number | null;
+  capacity?: number;
+  stayCount?: number;
+  notes?: string | null;
+  stays?: Stay[];
+};
+type Guest = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  phone?: string | null;
+  email?: string | null;
+  nationality?: string | null;
+  idType?: string | null;
+  idNumber?: string | null;
+  notes?: string | null;
+  preferences?: string | null;
+};
+type Reservation = {
+  id: string;
+  confirmationCode: string;
+  arrivalDate: string;
+  departureDate: string;
+  source: string;
+  status: string;
+  nightlyRate: number | string;
+  depositAmount: number | string;
+  depositMethod?: string;
+  cancellationNote?: string | null;
+  guest: Guest;
+  room?: Room | null;
+  roomId?: string | null;
+  roomType?: string | null;
+  groupName?: string | null;
+  groupCode?: string | null;
+};
+type Stay = {
+  id: string;
+  status: string;
+  guest: Guest;
+  room: Room;
+  checkInAt: string;
+  expectedCheckOut: string;
+  nightlyRate: number | string;
+  folio?: {
+    id: string;
+    folioNumber: string;
+    items: { amount: number | string }[];
+    payments: { amount: number | string }[];
+  } | null;
+};
+type Invoice = {
+  hotel: string;
+  folioNumber: string;
+  guest: Guest;
+  room: Room;
+  checkIn: string;
+  checkOut?: string | null;
+  items: {
+    description: string;
+    quantity: number | string;
+    unitPrice: number | string;
+    amount: number | string;
+  }[];
+  payments: {
+    method: string;
+    reference?: string | null;
+    receivedAt: string;
+    amount: number | string;
+  }[];
+  total: number | string;
+  paid: number | string;
+  balance: number | string;
+};
+type Dashboard = {
+  date: string;
+  arrivals: Reservation[];
+  departures: Stay[];
+  occupancy: { occupied: number; total: number; percent: number };
+  inHouse: number;
+  paymentsToday: number;
+  rooms: Room[];
+};
+type Expense = {
+  id: string;
+  category: string;
+  description: string;
+  payee?: string | null;
+  amount: number | string;
+  paymentMethod: string;
+  reference?: string | null;
+  notes?: string | null;
+  expenseDate: string;
+  voidedAt?: string | null;
+  voidReason?: string | null;
+};
+type Page =
+  | "Overview"
+  | "Rooms"
+  | "Reservations"
+  | "Guests"
+  | "In-house"
+  | "Expenses"
+  | "Reports"
+  | "Team";
+const statusLabels: Record<string, string> = {
+  CASH: "Cash",
+  COOPAY_EBIRR: "Coopay Ebirr",
+  EBIRR_KAAFI: "Ebirr Kaafi",
+  CBE_BANK: "CBE Bank",
+  OTHER: "Other",
+  MOBILE_MONEY: "Mobile money",
+  CARD: "Card",
+  BANK_TRANSFER: "Bank transfer",
+  AVAILABLE: "Available",
+  OCCUPIED: "Occupied",
+  DIRTY: "Dirty",
+  CLEAN: "Clean",
+  INSPECTED: "Inspected",
+  OUT_OF_ORDER: "Out of order",
+  CONFIRMED: "Confirmed",
+  PENDING: "Pending",
+  CHECKED_IN: "Checked in",
+  CHECKED_OUT: "Checked out",
+  CANCELLED: "Cancelled",
+  OPEN: "Open",
+  IN_PROGRESS: "In progress",
+  DONE: "Done",
+  HOUSEKEEPING: "Worker account",
+};
+const nav: { label: Page; icon: typeof DoorOpen }[] = [
+  { label: "Overview", icon: ChartNoAxesCombined },
+  { label: "Rooms", icon: BedDouble },
+  { label: "Reservations", icon: CalendarDays },
+  { label: "Guests", icon: Users },
+  { label: "In-house", icon: DoorOpen },
+  { label: "Expenses", icon: Receipt },
+  { label: "Reports", icon: FileText },
+  { label: "Team", icon: ClipboardList },
+];
+const today = () => new Date().toLocaleDateString("en-CA");
+const money = (value: number | string | undefined) =>
+  new Intl.NumberFormat(undefined, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(Number(value ?? 0));
+const dateLabel = (
+  value?: string | null,
+  options: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" },
+) =>
+  value
+    ? new Date(`${value.slice(0, 10)}T12:00:00`).toLocaleDateString(
+        undefined,
+        options,
+      )
+    : "—";
 const guestName = (guest: Guest) => `${guest.firstName} ${guest.lastName}`;
 
 export default function App() {
-  const [user, setUser] = useState<User | null>(() => { try { return JSON.parse(localStorage.getItem('hms_user') ?? 'null'); } catch { return null; } });
-  const [page, setPage] = useState<Page>('Overview');
+  const [user, setUser] = useState<User | null>(() => {
+    try {
+      return JSON.parse(localStorage.getItem("hms_user") ?? "null");
+    } catch {
+      return null;
+    }
+  });
+  const [page, setPage] = useState<Page>("Overview");
   const [mobileNav, setMobileNav] = useState(false);
-  const [notice, setNotice] = useState('');
+  const [notice, setNotice] = useState("");
   const [modal, setModal] = useState<ReactNode>(null);
-  const [roomForReservation, setRoomForReservation] = useState<Room | null>(null);
+  const [roomForReservation, setRoomForReservation] = useState<Room | null>(
+    null,
+  );
   const [version, setVersion] = useState(0);
   const [dark, setDark] = useState(false);
   const [date, setDate] = useState(today());
-  const refresh = () => setVersion(v => v + 1);
-  const flash = (message: string) => { setNotice(message); window.setTimeout(() => setNotice(''), 3500); };
-  const onMutation = async (action: () => Promise<unknown>, done: string) => { try { await action(); setModal(null); flash(done); refresh(); } catch (e) { flash(e instanceof Error ? e.message : 'Could not save changes'); } };
-  const logout = useCallback(() => { localStorage.removeItem('hms_token'); localStorage.removeItem('hms_user'); setUser(null); setModal(null); }, []);
-  useEffect(() => { window.addEventListener('hms:logout', logout); return () => window.removeEventListener('hms:logout', logout); }, [logout]);
+  const refresh = () => setVersion((v) => v + 1);
+  const flash = (message: string) => {
+    setNotice(message);
+    window.setTimeout(() => setNotice(""), 3500);
+  };
+  const onMutation = async (action: () => Promise<unknown>, done: string) => {
+    try {
+      await action();
+      setModal(null);
+      flash(done);
+      refresh();
+    } catch (e) {
+      flash(e instanceof Error ? e.message : "Could not save changes");
+    }
+  };
+  const logout = useCallback(() => {
+    localStorage.removeItem("hms_token");
+    localStorage.removeItem("hms_user");
+    setUser(null);
+    setModal(null);
+  }, []);
   useEffect(() => {
-    const navigate = (event: Event) => { const next = (event as CustomEvent<Page>).detail; if (next) setPage(next); };
-    const toast = (event: Event) => { setNotice(String((event as CustomEvent).detail ?? 'Done')); window.setTimeout(() => setNotice(''), 3500); };
-    const walkin = () => setModal(<CheckInModal onClose={() => setModal(null)} onSave={onMutation}/>);
-    window.addEventListener('hms:navigate', navigate); window.addEventListener('hms:toast', toast); window.addEventListener('hms:open-walkin', walkin);
-    return () => { window.removeEventListener('hms:navigate', navigate); window.removeEventListener('hms:toast', toast); window.removeEventListener('hms:open-walkin', walkin); };
+    window.addEventListener("hms:logout", logout);
+    return () => window.removeEventListener("hms:logout", logout);
+  }, [logout]);
+  useEffect(() => {
+    const navigate = (event: Event) => {
+      const next = (event as CustomEvent<Page>).detail;
+      if (next) setPage(next);
+    };
+    const toast = (event: Event) => {
+      setNotice(String((event as CustomEvent).detail ?? "Done"));
+      window.setTimeout(() => setNotice(""), 3500);
+    };
+    const walkin = () =>
+      setModal(
+        <CheckInModal onClose={() => setModal(null)} onSave={onMutation} />,
+      );
+    window.addEventListener("hms:navigate", navigate);
+    window.addEventListener("hms:toast", toast);
+    window.addEventListener("hms:open-walkin", walkin);
+    return () => {
+      window.removeEventListener("hms:navigate", navigate);
+      window.removeEventListener("hms:toast", toast);
+      window.removeEventListener("hms:open-walkin", walkin);
+    };
   });
 
   if (!user) return <Login onLogin={setUser} />;
-  return <div className={`app-shell ${dark ? 'dark-mode' : ''}`}>
-    <aside className={`sidebar ${mobileNav ? 'sidebar-open' : ''}`}>
-      <div className="brand"><div className="brand-mark"><Building2 size={18}/></div><div><strong>Staywell</strong><small>HOTEL DESK</small></div><button className="icon-button sidebar-close" aria-label="Close navigation" onClick={() => setMobileNav(false)}><X size={18}/></button></div>
-      <div className="property-pill"><span className="online-dot"/> Front desk <ChevronDown size={14}/></div>
-      <div className="nav-caption">WORKSPACE</div>
-      <nav>{nav.filter(({label})=>(label!=='Team'||user.role==='ADMIN')&&(label!=='Expenses'||['ADMIN','MANAGER','RECEPTIONIST'].includes(user.role))).map(({ label, icon: Icon }) => <button className={`nav-item ${page === label ? 'active' : ''}`} key={label} onClick={() => { setPage(label); setMobileNav(false); }}><Icon size={18}/><span>{label}</span></button>)}</nav>
-      <div className="sidebar-bottom"><div className="sidebar-help"><div className="help-icon"><Sparkles size={16}/></div><strong>Everything in order?</strong><span>Keep today's operations moving smoothly.</span></div><div className="user-chip"><div className="avatar">{user.name.split(' ').map(x => x[0]).slice(0,2).join('')}</div><div className="user-meta"><strong>{user.name}</strong><span>{statusLabels[user.role] ?? user.role}</span></div><button aria-label="Sign out" className="icon-button logout" onClick={logout}><LogOut size={16}/></button></div></div>
-    </aside>
-    {mobileNav && <button className="mobile-scrim" aria-label="Close navigation" onClick={() => setMobileNav(false)}/>}
-    <main className="main-area">
-      <header className="topbar"><button className="icon-button mobile-menu" onClick={() => setMobileNav(!mobileNav)}><Menu size={20}/></button><div className="breadcrumbs">Workspace <span>/</span> <strong>{page}</strong></div><div className="top-actions"><div className="top-date"><CalendarDays size={16}/><span className="top-date-text">{dateLabel(date, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</span></div><button className="icon-button" aria-label="Toggle theme" onClick={() => setDark(!dark)}>{dark ? <Sun size={17}/> : <Moon size={17}/>}</button><div className="avatar avatar-small">{user.name.slice(0,1)}</div></div></header>
-      <div className="page-content">
-        {page === 'Overview' && <Overview key={`overview-${version}-${date}`} date={date} setDate={setDate} openCheckIn={(r) => setModal(<CheckInModal reservation={r} onClose={() => setModal(null)} onSave={onMutation}/>)} openFolio={(s) => setModal(<FolioModal stay={s} onClose={() => setModal(null)} flash={flash}/>)} />}
-        {page === 'Rooms' && <RoomsPage key={`rooms-${version}`} flash={flash} canManage={['ADMIN','MANAGER'].includes(user.role)} onChooseRoom={(room) => setModal(<RoomActionModal room={room} onClose={() => setModal(null)} onCheckIn={() => setModal(<CheckInModal initialRoomId={room.id} onClose={() => setModal(null)} onSave={onMutation}/>)} onReserve={() => { setRoomForReservation(room); setPage('Reservations'); setModal(null); }}/>)}/>}
-        {page === 'Reservations' && <ReservationsPage key={`reservations-${version}`} roomForReservation={roomForReservation} onReservationRoomUsed={() => setRoomForReservation(null)} openCheckIn={(r) => setModal(<CheckInModal reservation={r} onClose={() => setModal(null)} onSave={onMutation}/>)} />}
-        {page === 'Guests' && <GuestsPage key={`guests-${version}`} flash={flash} />}
-        {page === 'In-house' && <><InHousePage key={`inhouse-${version}`} openFolio={(s) => setModal(<FolioModal stay={s} onClose={() => setModal(null)} flash={flash}/>)} flash={flash} /><RoomMovePanel key={`room-move-${version}`} flash={flash} refresh={refresh}/></>}
-        {page === 'Expenses' && ['ADMIN','MANAGER','RECEPTIONIST'].includes(user.role) && <ExpensesPage key={`expenses-${version}`} flash={flash} canManage={['ADMIN','MANAGER'].includes(user.role)}/>}
-        {page === 'Reports' && <><ReportsPage key={`reports-${version}`} flash={flash} role={user.role} />{['ADMIN','MANAGER'].includes(user.role)&&<DailyAuditHistory key={`daily-audits-${version}`} />}{user.role==='ADMIN'&&<ActivityLog key={`audit-${version}`}/>}</>}
-        {page === 'Team' && user.role==='ADMIN' && <TeamPage key={`team-${version}`} flash={flash} currentUserId={user.id} />}
-      </div>
-    </main>
-    {modal}
-    {notice && <div className="toast"><span className="toast-icon"><Check size={15}/></span>{notice}<button onClick={() => setNotice('')}><X size={15}/></button></div>}
-  </div>;
+  return (
+    <div className={`app-shell ${dark ? "dark-mode" : ""}`}>
+      <aside className={`sidebar ${mobileNav ? "sidebar-open" : ""}`}>
+        <div className="brand">
+          <div className="brand-mark">
+            <Building2 size={18} />
+          </div>
+          <div>
+            <strong>Staywell</strong>
+            <small>HOTEL DESK</small>
+          </div>
+          <button
+            className="icon-button sidebar-close"
+            aria-label="Close navigation"
+            onClick={() => setMobileNav(false)}
+          >
+            <X size={18} />
+          </button>
+        </div>
+        <div className="property-pill">
+          <span className="online-dot" /> Front desk <ChevronDown size={14} />
+        </div>
+        <div className="nav-caption">WORKSPACE</div>
+        <nav>
+          {nav
+            .filter(
+              ({ label }) =>
+                (label !== "Team" || user.role === "ADMIN") &&
+                (label !== "Expenses" ||
+                  ["ADMIN", "MANAGER", "RECEPTIONIST"].includes(user.role)),
+            )
+            .map(({ label, icon: Icon }) => (
+              <button
+                className={`nav-item ${page === label ? "active" : ""}`}
+                key={label}
+                onClick={() => {
+                  setPage(label);
+                  setMobileNav(false);
+                }}
+              >
+                <Icon size={18} />
+                <span>{label}</span>
+              </button>
+            ))}
+        </nav>
+        <div className="sidebar-bottom">
+          <div className="sidebar-help">
+            <div className="help-icon">
+              <Sparkles size={16} />
+            </div>
+            <strong>Everything in order?</strong>
+            <span>Keep today's operations moving smoothly.</span>
+          </div>
+          <div className="user-chip">
+            <div className="avatar">
+              {user.name
+                .split(" ")
+                .map((x) => x[0])
+                .slice(0, 2)
+                .join("")}
+            </div>
+            <div className="user-meta">
+              <strong>{user.name}</strong>
+              <span>{statusLabels[user.role] ?? user.role}</span>
+            </div>
+            <button
+              aria-label="Sign out"
+              className="icon-button logout"
+              onClick={logout}
+            >
+              <LogOut size={16} />
+            </button>
+          </div>
+        </div>
+      </aside>
+      {mobileNav && (
+        <button
+          className="mobile-scrim"
+          aria-label="Close navigation"
+          onClick={() => setMobileNav(false)}
+        />
+      )}
+      <main className="main-area">
+        <header className="topbar">
+          <button
+            className="icon-button mobile-menu"
+            onClick={() => setMobileNav(!mobileNav)}
+          >
+            <Menu size={20} />
+          </button>
+          <div className="breadcrumbs">
+            Workspace <span>/</span> <strong>{page}</strong>
+          </div>
+          <div className="top-actions">
+            <div className="top-date">
+              <CalendarDays size={16} />
+              <span className="top-date-text">
+                {dateLabel(date, {
+                  weekday: "short",
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })}
+              </span>
+            </div>
+            <button
+              className="icon-button"
+              aria-label="Toggle theme"
+              onClick={() => setDark(!dark)}
+            >
+              {dark ? <Sun size={17} /> : <Moon size={17} />}
+            </button>
+            <div className="avatar avatar-small">{user.name.slice(0, 1)}</div>
+          </div>
+        </header>
+        <div className="page-content">
+          {page === "Overview" && (
+            <Overview
+              key={`overview-${version}-${date}`}
+              date={date}
+              setDate={setDate}
+              openCheckIn={(r) =>
+                setModal(
+                  <CheckInModal
+                    reservation={r}
+                    onClose={() => setModal(null)}
+                    onSave={onMutation}
+                  />,
+                )
+              }
+              openFolio={(s) =>
+                setModal(
+                  <FolioModal
+                    stay={s}
+                    onClose={() => setModal(null)}
+                    flash={flash}
+                  />,
+                )
+              }
+            />
+          )}
+          {page === "Rooms" && (
+            <RoomsPage
+              key={`rooms-${version}`}
+              flash={flash}
+              canManage={["ADMIN", "MANAGER"].includes(user.role)}
+              onChooseRoom={(room) =>
+                setModal(
+                  <RoomActionModal
+                    room={room}
+                    onClose={() => setModal(null)}
+                    onCheckIn={() =>
+                      setModal(
+                        <CheckInModal
+                          initialRoomId={room.id}
+                          onClose={() => setModal(null)}
+                          onSave={onMutation}
+                        />,
+                      )
+                    }
+                    onReserve={() => {
+                      setRoomForReservation(room);
+                      setPage("Reservations");
+                      setModal(null);
+                    }}
+                  />,
+                )
+              }
+            />
+          )}
+          {page === "Reservations" && (
+            <ReservationsPage
+              key={`reservations-${version}`}
+              roomForReservation={roomForReservation}
+              onReservationRoomUsed={() => setRoomForReservation(null)}
+              openCheckIn={(r) =>
+                setModal(
+                  <CheckInModal
+                    reservation={r}
+                    onClose={() => setModal(null)}
+                    onSave={onMutation}
+                  />,
+                )
+              }
+            />
+          )}
+          {page === "Guests" && (
+            <GuestsPage key={`guests-${version}`} flash={flash} />
+          )}
+          {page === "In-house" && (
+            <>
+              <InHousePage
+                key={`inhouse-${version}`}
+                openFolio={(s) =>
+                  setModal(
+                    <FolioModal
+                      stay={s}
+                      onClose={() => setModal(null)}
+                      flash={flash}
+                    />,
+                  )
+                }
+                flash={flash}
+              />
+              <RoomMovePanel
+                key={`room-move-${version}`}
+                flash={flash}
+                refresh={refresh}
+              />
+            </>
+          )}
+          {page === "Expenses" &&
+            ["ADMIN", "MANAGER", "RECEPTIONIST"].includes(user.role) && (
+              <ExpensesPage
+                key={`expenses-${version}`}
+                flash={flash}
+                canManage={["ADMIN", "MANAGER"].includes(user.role)}
+              />
+            )}
+          {page === "Reports" && (
+            <>
+              <ReportsPage
+                key={`reports-${version}`}
+                flash={flash}
+                role={user.role}
+              />
+              {["ADMIN", "MANAGER"].includes(user.role) && (
+                <DailyAuditHistory key={`daily-audits-${version}`} />
+              )}
+              {user.role === "ADMIN" && (
+                <ActivityLog key={`audit-${version}`} />
+              )}
+            </>
+          )}
+          {page === "Team" && user.role === "ADMIN" && (
+            <TeamPage
+              key={`team-${version}`}
+              flash={flash}
+              currentUserId={user.id}
+            />
+          )}
+        </div>
+      </main>
+      {modal}
+      {notice && (
+        <div className="toast">
+          <span className="toast-icon">
+            <Check size={15} />
+          </span>
+          {notice}
+          <button onClick={() => setNotice("")}>
+            <X size={15} />
+          </button>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function Login({ onLogin }: { onLogin: (user: User) => void }) {
-  const [email, setEmail] = useState(''), [password, setPassword] = useState(''), [error, setError] = useState(''), [busy, setBusy] = useState(false);
+  const [email, setEmail] = useState(""),
+    [password, setPassword] = useState(""),
+    [error, setError] = useState(""),
+    [busy, setBusy] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [recovering, setRecovering] = useState(false), [recoveryPhrase, setRecoveryPhrase] = useState(''), [newPassword, setNewPassword] = useState('');
-  async function submit(e: FormEvent) { e.preventDefault(); setBusy(true); setError(''); try { const result = await api<{token:string;user:User}>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }); localStorage.setItem('hms_token', result.token); localStorage.setItem('hms_user', JSON.stringify(result.user)); onLogin(result.user); } catch (e) { setError(e instanceof Error ? e.message : 'Unable to sign in'); } finally { setBusy(false); } }
-  async function resetPassword(e: FormEvent) { e.preventDefault(); setBusy(true); setError(''); try { const result = await api<{message:string}>('/auth/admin/forgot-password', { method: 'POST', body: JSON.stringify({ email, recoveryPhrase, newPassword }) }); setRecovering(false); setPassword(''); setRecoveryPhrase(''); setNewPassword(''); setError(result.message); } catch (e) { setError(e instanceof Error ? e.message : 'Unable to reset administrator password'); } finally { setBusy(false); } }
-  return <div className="login-wrap"><div className="login-art"><div className="login-brand"><div className="brand-mark"><Building2 size={18}/></div> Staywell</div><div className="art-copy"><span className="eyebrow">A CALM START TO EVERY STAY</span><h1>Good hospitality<br/>starts right here.</h1><p>Your hotel's daily operations, thoughtfully organized.</p></div><div className="art-bottom"><span>ROOMS · GUESTS · OPERATIONS</span><span>12 rooms, one clear view.</span></div><div className="art-shape shape-one"/><div className="art-shape shape-two"/></div><div className="login-form-side"><form className="login-form" onSubmit={recovering?resetPassword:submit}><div className="login-mobile-brand"><div className="brand-mark"><Building2 size={18}/></div> Staywell</div><span className="eyebrow">HOTEL TEAM</span><h2>{recovering?'Reset administrator password':'Welcome back'}</h2><p>{recovering?'Use the recovery passphrase you set in Team access.':'Sign in to continue to the front desk.'}</p><label>Email address<input type="email" autoComplete="username" required value={email} onChange={e=>setEmail(e.target.value)}/></label>{recovering?<><label>Admin recovery passphrase<input type="password" autoComplete="off" required value={recoveryPhrase} onChange={e=>setRecoveryPhrase(e.target.value)}/></label><label>New password (10+ characters)<input type="password" minLength={10} autoComplete="new-password" required value={newPassword} onChange={e=>setNewPassword(e.target.value)}/></label></>:<label>Password<span className="login-password-wrap"><input type={showPassword?'text':'password'} autoComplete="current-password" required value={password} onChange={e=>setPassword(e.target.value)}/><button type="button" className="login-password-toggle" aria-label={showPassword?'Hide password':'Show password'} aria-pressed={showPassword} onClick={()=>setShowPassword(visible=>!visible)}>{showPassword?<EyeOff size={17}/>:<Eye size={17}/>}</button></span></label>}{error && <div className={error.includes('reset')?'form-success':'form-error'}>{error}</div>}<button className="primary-button full" disabled={busy}>{busy ? 'Please wait…' : recovering?'Reset password':'Sign in'}<ChevronRight size={17}/></button>{!recovering?<button type="button" className="text-button recovery-link" onClick={()=>{setError('');setRecovering(true);}}>Forgot administrator password?</button>:<button type="button" className="text-button recovery-link" onClick={()=>{setError('');setRecovering(false);}}>Back to sign in</button>}<small className="login-foot">Receptionist accounts must contact the hotel administrator for password help.</small></form></div></div>;
-}
-
-function PageTitle({ eyebrow, title, subtitle, action }: { eyebrow: string; title: string; subtitle?: string; action?: ReactNode }) { return <div className="page-title-row"><div><div className="eyebrow">{eyebrow}</div><h1>{title}</h1>{subtitle && <p>{subtitle}</p>}</div>{action}</div>; }
-function Card({ children, className = '', id }: { children: ReactNode; className?: string; id?: string }) { return <section className={`card ${className}`} id={id}>{children}</section>; }
-function SectionHeading({ title, meta, action }: { title: string; meta?: string; action?: ReactNode }) { return <div className="section-heading"><div><h3>{title}</h3>{meta && <span>{meta}</span>}</div>{action}</div>; }
-function Badge({ value }: { value: string }) { const key = value.toLowerCase().replaceAll('_','-'); return <span className={`badge badge-${key}`}>{statusLabels[value] ?? value.replaceAll('_',' ')}</span>; }
-function Empty({ title, copy }: { title: string; copy: string }) { return <div className="empty-state"><div className="empty-icon"><Sparkles size={19}/></div><strong>{title}</strong><span>{copy}</span></div>; }
-function Loading() { return <div className="loading"><span className="spinner"/> Loading hotel data…</div>; }
-function Field({ label, children, className = '' }: { label: string; children: ReactNode; className?: string }) { return <label className={`field ${className}`}><span>{label}</span>{children}</label>; }
-function Modal({ title, subtitle, children, onClose, wide = false }: { title: string; subtitle?: string; children: ReactNode; onClose: () => void; wide?: boolean }) { return <div className="modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}><section className={`modal ${wide ? 'modal-wide' : ''}`}><div className="modal-head"><div><h2>{title}</h2>{subtitle && <span>{subtitle}</span>}</div><button className="icon-button" onClick={onClose}><X size={18}/></button></div>{children}</section></div>; }
-
-function Overview({ date, setDate, openCheckIn, openFolio }: { date: string; setDate: (d:string)=>void; openCheckIn:(r:Reservation)=>void; openFolio:(s:Stay)=>void }) {
-  const { data, loading, error } = useLoad<Dashboard>(`/reports/dashboard?date=${date}`);
-  if (loading) return <Loading/>;
-  if (!data) return <ErrorPanel message={error}/>;
-  const statuses = ['AVAILABLE','OCCUPIED','DIRTY','CLEAN','INSPECTED','OUT_OF_ORDER'];
-  return <><PageTitle eyebrow={new Date(`${date}T12:00:00`).toLocaleDateString(undefined,{weekday:'long',day:'2-digit',month:'long',year:'numeric'}).toUpperCase()} title="Good morning, team" subtitle="Here's what's happening at the hotel today." action={<div className="date-picker"><button className="icon-button" onClick={()=>setDate(shiftDay(date,-1))}><ChevronLeft size={17}/></button><input type="date" value={date} onChange={e=>setDate(e.target.value)}/><button className="icon-button" onClick={()=>setDate(shiftDay(date,1))}><ChevronRight size={17}/></button></div>}/>
-    <div className="stats-grid"><StatCard label="Occupancy" value={`${data.occupancy.percent}%`} note={`${data.occupancy.occupied} of ${data.occupancy.total} rooms`} icon={<BedDouble/>} tone="green"/><StatCard label="Arrivals" value={data.arrivals.length} note="Expected today" icon={<DoorOpen/>} tone="blue"/><StatCard label="Departures" value={data.departures.length} note="Expected today" icon={<LogOut/>} tone="peach"/><StatCard label="Payments today" value={money(data.paymentsToday)} note="Across all tenders" icon={<CircleDollarSign/>} tone="lilac"/></div>
-    <div className="overview-grid"><Card><SectionHeading title="Today's arrivals" meta={`${data.arrivals.length} expected`} action={<button className="text-button" onClick={()=>{}}>View all <ChevronRight size={15}/></button>}/>{data.arrivals.length ? <div className="arrival-list">{data.arrivals.slice(0,5).map(r=><div className="arrival-row" key={r.id}><div className="avatar avatar-guest">{r.guest.firstName[0]}{r.guest.lastName[0]}</div><div className="arrival-person"><strong>{guestName(r.guest)}</strong><span>{r.confirmationCode} · {r.room?.number ? `Room ${r.room.number}` : r.roomType ?? 'Room to assign'}</span></div><div className="arrival-date">{dateLabel(r.arrivalDate)}</div><button className="small-button" onClick={()=>openCheckIn(r)}>Check in</button></div>)}</div>:<Empty title="No arrivals today" copy="The front desk is all caught up."/>}</Card>
-    <Card className="room-overview-card"><SectionHeading title="Room status" meta="Live overview" action={<button className="text-button" onClick={()=>window.dispatchEvent(new CustomEvent('hms:navigate',{detail:'Rooms'}))}>Room board <ChevronRight size={15}/></button>}/><div className="status-summary">{statuses.map(s=><div className="status-summary-row" key={s}><span className={`status-dot dot-${s.toLowerCase()}`}/><span>{statusLabels[s]}</span><strong>{data.rooms.filter(r=>r.status===s).length}</strong></div>)}</div><div className="occupancy-footer"><div><span>Currently in-house</span><strong>{data.inHouse} <small>/ {data.occupancy.total} rooms</small></strong></div><div className="progress-track"><span style={{width:`${data.occupancy.percent}%`}}/></div></div></Card>
-    <Card className="stays-card"><SectionHeading title="Guests in-house" meta={`${data.inHouse} active stays`} action={<button className="text-button" onClick={()=>window.dispatchEvent(new CustomEvent('hms:navigate',{detail:'In-house'}))}>View stays <ChevronRight size={15}/></button>}/><InHouseMini openFolio={openFolio}/></Card>
-    <Card className="quick-card"><div className="quick-heading"><div className="quick-icon"><Sparkles size={17}/></div><div><h3>Front desk pulse</h3><span>A quick look at today's operations</span></div></div><div className="pulse-stat"><span>Rooms in use</span><strong>{data.inHouse} / {data.occupancy.total}</strong></div><div className="pulse-stat"><span>Payments received</span><strong>{money(data.paymentsToday)}</strong></div><div className="pulse-note"><span className="online-dot"/> All hotel services are running normally</div></Card></div>
-  </>;
-}
-function StatCard({label,value,note,icon,tone}:{label:string;value:ReactNode;note:string;icon:ReactNode;tone:string}) { return <div className="stat-card"><div className="stat-top"><span className="stat-label">{label}</span><div className={`stat-icon icon-${tone}`}>{icon}</div></div><strong className="stat-value">{value}</strong><span className="stat-note">{note}</span></div>; }
-function InHouseMini({ openFolio }: { openFolio:(s:Stay)=>void }) { const {data,loading}=useLoad<Stay[]>('/stays/in-house'); if(loading)return <Loading/>;if(!data?.length)return <Empty title="No guests checked in" copy="Checked-in guests will appear here."/>;return <div className="mini-stay-list">{data.slice(0,4).map(s=><button className="mini-stay" key={s.id} onClick={()=>openFolio(s)}><span className="avatar avatar-guest">{s.guest.firstName[0]}{s.guest.lastName[0]}</span><span className="mini-stay-name"><strong>{guestName(s.guest)}</strong><small>Room {s.room.number} · departs {dateLabel(s.expectedCheckOut)}</small></span><ChevronRight size={16}/></button>)}</div>; }
-
-function RoomsPage({ flash, onChooseRoom, canManage }: { flash:(s:string)=>void; onChooseRoom:(room:Room)=>void; canManage:boolean }) {
-  const { data: rooms, loading, error, reload } = useLoad<Room[]>('/rooms');
-  const [filter,setFilter]=useState<'ALL'|'FREE'|'OCCUPIED'|'ATTENTION'>('ALL');
-  const [editing,setEditing]=useState<Room|null>(null);
-  async function change(room:Room,status:string){try{await patch(`/rooms/${room.id}/status`,{status});flash(`Room ${room.number} marked ${statusLabels[status]?.toLowerCase()}`);reload();}catch(e){flash(e instanceof Error?e.message:'Could not update room');}}
-  async function saveRoom(room:Room,values:Record<string,unknown>){await patch(`/rooms/${room.id}`,values);setEditing(null);flash(`Room ${room.number} updated. The room type price applies to every ${String(values.type||room.type)} room.`);reload();}
-  const freeCount=rooms?.filter(r=>['AVAILABLE','CLEAN','INSPECTED'].includes(r.status)).length??0;
-  const occupiedCount=rooms?.filter(r=>r.status==='OCCUPIED').length??0;
-  const visible=rooms?.filter(r=>filter==='ALL'||(filter==='FREE'&&['AVAILABLE','CLEAN','INSPECTED'].includes(r.status))||(filter==='OCCUPIED'&&r.status==='OCCUPIED')||(filter==='ATTENTION'&&['DIRTY','OUT_OF_ORDER'].includes(r.status)))??[];
-  const grouped=new Map<string,{title:string;rooms:Room[]}>();
-  for(const room of visible){const title=room.type.trim()||'Other';const key=title.toLocaleLowerCase();const group=grouped.get(key)??{title,rooms:[]};group.rooms.push(room);grouped.set(key,group);}
-  const roomGroups=Array.from(grouped.values()).sort((a,b)=>a.title.localeCompare(b.title));
-  const busiest=rooms?.reduce<Room|null>((top,room)=>!top||(room.stayCount??0)>(top.stayCount??0)?room:top,null)??null;
-  return <><PageTitle eyebrow="PROPERTY" title="Room board" subtitle="See at a glance which rooms are free and which are occupied." action={<div className="room-count-pill"><BedDouble size={15}/> {rooms?.length??12} rooms</div>}/>{loading?<Loading/>:!rooms?<ErrorPanel message={error}/>:<><div className="room-quick-counts"><div className="room-count-box free"><span>Free rooms</span><strong>{freeCount}</strong></div><div className="room-count-box occupied"><span>Occupied rooms</span><strong>{occupiedCount}</strong></div><div className="room-count-box attention"><span>Need attention</span><strong>{rooms.length-freeCount-occupiedCount}</strong></div></div><div className="toolbar room-filter-toolbar"><div className="segmented room-filter" aria-label="Filter rooms"><button className={filter==='ALL'?'selected':''} onClick={()=>setFilter('ALL')}>All ({rooms.length})</button><button className={filter==='FREE'?'selected':''} onClick={()=>setFilter('FREE')}>Free ({freeCount})</button><button className={filter==='OCCUPIED'?'selected':''} onClick={()=>setFilter('OCCUPIED')}>Occupied ({occupiedCount})</button><button className={filter==='ATTENTION'?'selected':''} onClick={()=>setFilter('ATTENTION')}>Needs attention ({rooms.length-freeCount-occupiedCount})</button></div></div><div className="room-legend">{['AVAILABLE','OCCUPIED','DIRTY','CLEAN','INSPECTED','OUT_OF_ORDER'].map(s=><span key={s}><i className={`status-dot dot-${s.toLowerCase()}`}/>{statusLabels[s]}</span>)}</div>{busiest&&(busiest.stayCount??0)>0&&<div className="busiest-room-note"><Trophy size={16}/> Most stays: <strong>Room {busiest.number}</strong><span>{busiest.stayCount} recorded stays</span></div>}{roomGroups.length?roomGroups.map(group=>{const representative=group.rooms[0];const rate=group.rooms.every(r=>Number(r.baseRate)===Number(representative.baseRate))?money(representative.baseRate):'Mixed';return <section className="room-type-section" key={group.title.toLocaleLowerCase()}><div className="room-type-heading"><div><h2>{group.title} rooms</h2><small>Nightly rate: {rate==='Mixed'?rate:`${rate} / night`}</small></div><div className="room-type-heading-actions"><span>{group.rooms.length} {group.rooms.length===1?'room':'rooms'}</span>{canManage&&<button className="small-button" onClick={()=>setEditing(representative)}><Pencil size={13}/> Edit type price</button>}</div></div><div className="room-grid">{group.rooms.map(room=><RoomBoardCard key={room.id} room={room} isBusiest={room.id===busiest?.id&&(room.stayCount??0)>0} canManage={canManage} onManage={()=>setEditing(room)} onStatusChange={change} onChooseRoom={onChooseRoom}/>)}</div></section>}):<Card><Empty title="No rooms in this filter" copy="Choose another room group to see more rooms."/></Card>}</>}{editing&&<RoomEditModal room={editing} knownRooms={rooms??[]} onClose={()=>setEditing(null)} onSave={saveRoom}/>}</>;
-}
-
-function RoomBoardCard({room,isBusiest,canManage,onManage,onStatusChange,onChooseRoom}:{room:Room;isBusiest:boolean;canManage:boolean;onManage:()=>void;onStatusChange:(room:Room,status:string)=>void;onChooseRoom:(room:Room)=>void}){
-  return <article className={`room-card room-${room.status.toLowerCase()}`}><div className="room-card-top"><span className="room-number">{room.number}</span><Badge value={room.status}/></div><div className="room-type">{room.type} room <span>·</span> {money(room.baseRate)} / night</div><div className="room-stay-count">{isBusiest&&<Trophy size={13}/>} {room.stayCount??0} {(room.stayCount??0)===1?'stay':'stays'}{isBusiest?' · Most stays':''}</div>{room.stays?.[0]?.guest&&<div className="room-guest"><div className="avatar avatar-guest">{room.stays[0].guest.firstName[0]}{room.stays[0].guest.lastName[0]}</div><span><strong>{guestName(room.stays[0].guest)}</strong><small>Currently staying</small></span></div>}{room.notes&&<p className="room-notes">{room.notes}</p>}<div className="room-card-bottom"><select aria-label={`Update room ${room.number} status`} value={room.status} onChange={e=>onStatusChange(room,e.target.value)}><option value="AVAILABLE">Available</option><option value="OCCUPIED">Occupied</option><option value="DIRTY">Dirty</option><option value="CLEAN">Clean</option><option value="INSPECTED">Inspected</option><option value="OUT_OF_ORDER">Out of order</option></select>{['AVAILABLE','CLEAN','INSPECTED'].includes(room.status)&&<button className="small-button room-action-button" onClick={()=>onChooseRoom(room)}>Check in / reserve</button>}</div>{canManage&&<button className="text-button room-manage-button" onClick={onManage}><Pencil size={14}/> Manage room</button>}</article>;
-}
-
-function RoomEditModal({room,knownRooms,onClose,onSave}:{room:Room;knownRooms:Room[];onClose:()=>void;onSave:(room:Room,values:Record<string,unknown>)=>Promise<void>}){
-  const [number,setNumber]=useState(room.number),[type,setType]=useState(room.type),[rate,setRate]=useState(String(room.baseRate)),[floor,setFloor]=useState(room.floor===null||room.floor===undefined?'':String(room.floor)),[capacity,setCapacity]=useState(String(room.capacity??2)),[notes,setNotes]=useState(room.notes??''),[busy,setBusy]=useState(false),[error,setError]=useState('');
-  function changeType(next:string){setType(next);const match=knownRooms.find(candidate=>candidate.id!==room.id&&candidate.type.toLocaleLowerCase()===next.trim().toLocaleLowerCase());if(match)setRate(String(match.baseRate));}
-  async function submit(e:FormEvent){e.preventDefault();setBusy(true);setError('');try{const typeChanged=type.trim()!==room.type;await onSave(room,{number:number.trim(),type:type.trim(),...(typeChanged&&Number(rate)===Number(room.baseRate)?{}:{baseRate:Number(rate)}),floor:floor===''?undefined:Number(floor),capacity:Number(capacity),notes:notes.trim()||null});}catch(e){setError(e instanceof Error?e.message:'Could not save room');setBusy(false);}}
-  return <Modal title={`Manage room ${room.number}`} subtitle="Room type price is shared by all rooms in that type." onClose={onClose}><form className="modal-form" onSubmit={submit}><div className="form-grid"><Field label="Room number"><input required maxLength={12} value={number} onChange={e=>setNumber(e.target.value)}/></Field><Field label="Room type"><input required maxLength={60} value={type} onChange={e=>changeType(e.target.value)}/></Field><Field label="Type nightly price"><input type="number" min="0" step="0.01" required value={rate} onChange={e=>setRate(e.target.value)}/></Field><Field label="Floor"><input type="number" step="1" value={floor} onChange={e=>setFloor(e.target.value)}/></Field><Field label="Guest capacity"><input type="number" min="1" max="12" step="1" required value={capacity} onChange={e=>setCapacity(e.target.value)}/></Field><Field label="Room notes" className="wide-field"><textarea rows={3} maxLength={1000} value={notes} onChange={e=>setNotes(e.target.value)}/></Field></div>{error&&<div className="form-error">{error}</div>}<div className="modal-actions"><button type="button" className="secondary-button" onClick={onClose} disabled={busy}>Cancel</button><button className="primary-button" disabled={busy}><Check size={15}/>{busy?'Saving…':'Save room'}</button></div></form></Modal>;
-}
-
-function ReservationsPage({ openCheckIn, roomForReservation, onReservationRoomUsed }: { openCheckIn:(r:Reservation)=>void; roomForReservation:Room|null; onReservationRoomUsed:()=>void }) {
-  const [mode,setMode]=useState<'day'|'month'>('day'), [month,setMonth]=useState(today().slice(0,7)), [query,setQuery]=useState(''),[editing,setEditing]=useState<Reservation|null>(null),[selectedGuest,setSelectedGuest]=useState<Guest|null>(null);
-  const [canceling,setCanceling]=useState<Reservation|null>(null);
-  const [guestNameInput,setGuestNameInput]=useState(''),[guestPhoneInput,setGuestPhoneInput]=useState(''),[existingGuest,setExistingGuest]=useState<Guest|null>(null);
-  const from = mode==='month' ? `${month}-01` : today(), to = mode==='month' ? shiftMonth(month,1)+'-01' : shiftDay(today(),31);
-  const {data:reservations,loading,error,reload}=useLoad<Reservation[]>(`/reservations?from=${from}&to=${to}`);
-  const {data:rooms}=useLoad<Room[]>('/rooms');
-  const lookupQuery=[guestNameInput,guestPhoneInput].filter(Boolean).join(' ').trim();
-  const {data:guestMatches}=useLoad<Guest[]>(lookupQuery.length>=2?`/guests?q=${encodeURIComponent(lookupQuery)}`:null,[lookupQuery]);
-  const filtered=useMemo(()=>reservations?.filter(r=>`${guestName(r.guest)} ${r.confirmationCode} ${r.groupName??''}`.toLowerCase().includes(query.toLowerCase())),[reservations,query]);
-  const create = async (e:FormEvent<HTMLFormElement>)=>{e.preventDefault();const form=e.currentTarget;const f=new FormData(form);const guestText=guestNameInput.trim().split(/\s+/);try{await post('/reservations',{guestId:existingGuest?.id,guest:existingGuest?undefined:{firstName:guestText[0],lastName:guestText.slice(1).join(' ')||'Guest',phone:guestPhoneInput||undefined},source:f.get('source'),arrivalDate:f.get('arrival'),departureDate:f.get('departure'),roomId:f.get('room')||undefined,roomType:f.get('roomType')||undefined,nightlyRate:Number(f.get('rate')),depositAmount:Number(f.get('deposit')||0),depositMethod:f.get('depositMethod'),adults:Number(f.get('adults')||1),groupName:f.get('groupName')||undefined,groupCode:f.get('groupName')?String(f.get('groupName')).toUpperCase().replaceAll(' ','-'):undefined});form.reset();setGuestNameInput('');setGuestPhoneInput('');setExistingGuest(null);onReservationRoomUsed();reload();window.dispatchEvent(new CustomEvent('hms:toast',{detail:'Reservation created'}));}catch(err){window.dispatchEvent(new CustomEvent('hms:toast',{detail:err instanceof Error?err.message:'Could not create reservation'}));}};
-  return <><PageTitle eyebrow="FRONT DESK" title="Reservations" subtitle="Manage phone bookings, walk-ins and group stays." action={<button className="primary-button" onClick={()=>document.getElementById('new-reservation')?.scrollIntoView({behavior:'smooth'})}><Plus size={16}/> New reservation</button>}/><div className="toolbar"><div className="segmented"><button className={mode==='day'?'selected':''} onClick={()=>setMode('day')}>Daily</button><button className={mode==='month'?'selected':''} onClick={()=>setMode('month')}>Monthly board</button></div><div className="month-control"><button className="icon-button" onClick={()=>setMonth(shiftMonth(month,-1))}><ChevronLeft size={17}/></button><strong>{new Date(`${month}-15T12:00:00`).toLocaleDateString(undefined,{month:'long',year:'numeric'})}</strong><button className="icon-button" onClick={()=>setMonth(shiftMonth(month,1))}><ChevronRight size={17}/></button></div><div className="search-box"><Search size={16}/><input placeholder="Search guest or group" value={query} onChange={e=>setQuery(e.target.value)}/></div></div>
-  {mode==='month' && rooms && filtered && <MonthlyBoard rooms={rooms} reservations={filtered.filter(r=>!['CANCELLED','NO_SHOW'].includes(r.status))} month={month} onGuest={setSelectedGuest}/>}
-  {mode==='day' && <Card className="table-card"><SectionHeading title="Reservation list" meta={`${filtered?.length??0} upcoming stays`}/>{loading?<Loading/>:!filtered?<ErrorPanel message={error}/>:filtered.length===0?<Empty title="No reservations in this period" copy="Create a reservation to get started."/>:<div className="table-wrap"><table><thead><tr><th>Guest</th><th>Dates</th><th>Room</th><th>Source</th><th>Deposit</th><th>Status</th><th></th></tr></thead><tbody>{filtered.map(r=><tr key={r.id}><td><strong>{guestName(r.guest)}</strong><small>{r.confirmationCode}{r.groupName?` · ${r.groupName}`:''}{r.cancellationNote?` · ${r.cancellationNote}`:''}</small></td><td>{dateLabel(r.arrivalDate)} – {dateLabel(r.departureDate)}</td><td>{r.room?.number?`Room ${r.room.number}`:r.roomType??'Unassigned'}</td><td><span className="source-label">{r.source.replace('_',' ')}</span></td><td>{money(r.depositAmount)}</td><td><Badge value={r.status}/></td><td>{['CONFIRMED','PENDING'].includes(r.status)?<div className="reservation-actions"><button className="small-button" onClick={()=>openCheckIn(r)}>Check in</button><button className="icon-button" title="Cancel reservation" onClick={()=>setCanceling(r)}><X size={16}/></button></div>:null}</td></tr>)}</tbody></table></div>}</Card>}
-  <Card className="create-res-card" id="new-reservation"><SectionHeading title="Create a reservation" meta="Phone, walk-in, or group booking"/><form className="form-grid" onSubmit={create}><Field label="Guest name"><input name="guest" placeholder="Full name" required value={guestNameInput} onChange={e=>{setGuestNameInput(e.target.value);setExistingGuest(null);}}/></Field><Field label="Phone"><input name="phone" placeholder="Phone number" value={guestPhoneInput} onChange={e=>{setGuestPhoneInput(e.target.value);setExistingGuest(null);}}/></Field>{existingGuest?<div className="guest-match selected"><UserRound size={16}/><span><strong>Using existing guest: {guestName(existingGuest)}</strong><small>{existingGuest.phone||'No phone on file'} · no duplicate profile will be created</small></span><button type="button" className="text-button" onClick={()=>setExistingGuest(null)}>Change</button></div>:!!guestMatches?.length&&<div className="guest-match-list"><strong>Possible existing guests — select one to reuse their profile</strong>{guestMatches.slice(0,4).map(g=><button type="button" className="guest-match-option" key={g.id} onClick={()=>{setExistingGuest(g);setGuestNameInput(guestName(g));setGuestPhoneInput(g.phone??'');}}><span><b>{guestName(g)}</b><small>{g.phone||'No phone on file'}{g.nationality?` · ${g.nationality}`:''}</small></span><span className="text-button">Use profile</span></button>)}</div>}<Field label="Booking source"><select name="source"><option value="PHONE">Phone booking</option><option value="WALK_IN">Walk-in</option><option value="GROUP">Group booking</option></select></Field><Field label="Group name (optional)"><input name="groupName" placeholder="e.g. Regional workshop"/></Field><Field label="Arrival"><input name="arrival" type="date" defaultValue={today()} required/></Field><Field label="Departure"><input name="departure" type="date" defaultValue={shiftDay(today(),1)} required/></Field><Field label="Room (optional)"><select name="room" defaultValue={roomForReservation?.id??''}><option value="">Assign later</option>{rooms?.map(r=><option value={r.id} key={r.id}>{r.number} · {r.type}</option>)}</select></Field><Field label="Room type"><input name="roomType" placeholder="Standard, twin…"/></Field><Field label="Nightly rate"><input name="rate" type="number" min="0" step="0.01" defaultValue={roomForReservation ? Number(roomForReservation.baseRate) : 0} required/></Field><Field label="Deposit received"><input name="deposit" type="number" min="0" step="0.01" defaultValue="0"/></Field><Field label="Deposit method"><select name="depositMethod"><option value="CASH">Cash</option><option value="COOPAY_EBIRR">Coopay Ebirr</option><option value="EBIRR_KAAFI">Ebirr Kaafi</option><option value="CBE_BANK">CBE Bank</option><option value="OTHER">Other</option></select></Field><Field label="Adults"><input name="adults" type="number" min="1" defaultValue="1"/></Field><div className="form-actions"><button className="primary-button"><Plus size={16}/> Save reservation</button></div></form></Card>
-  {reservations?.some(r=>['CONFIRMED','PENDING'].includes(r.status))&&<Card className="edit-res-card"><SectionHeading title="Edit a reservation" meta="Change dates, room assignment, or deposit details"/><Field label="Select reservation"><select value="" onChange={e=>setEditing(reservations.find(r=>r.id===e.target.value)??null)}><option value="">Choose a reservation to edit</option>{reservations.filter(r=>['CONFIRMED','PENDING'].includes(r.status)).map(r=><option key={r.id} value={r.id}>{r.confirmationCode} · {guestName(r.guest)} · {dateLabel(r.arrivalDate)}</option>)}</select></Field></Card>}{editing&&<EditReservationModal reservation={editing} rooms={rooms??[]} onClose={()=>setEditing(null)} onSaved={()=>{setEditing(null);reload();}}/>}{selectedGuest&&<GuestDetailsModal guest={selectedGuest} onClose={()=>setSelectedGuest(null)}/>}{canceling&&<CancelReservationModal reservation={canceling} onClose={()=>setCanceling(null)} onCancelled={()=>{setCanceling(null);reload();}}/>}
-  </>;
-}
-function CancelReservationModal({reservation,onClose,onCancelled}:{reservation:Reservation;onClose:()=>void;onCancelled:()=>void}){const [note,setNote]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState('');async function cancel(e:FormEvent){e.preventDefault();setBusy(true);setError('');try{await post(`/reservations/${reservation.id}/cancel`,{note:note.trim()||undefined});window.dispatchEvent(new CustomEvent('hms:toast',{detail:`Reservation ${reservation.confirmationCode} cancelled`}));onCancelled();}catch(err){setError(err instanceof Error?err.message:'Could not cancel reservation');setBusy(false);}}return <Modal title="Cancel reservation" subtitle={`${guestName(reservation.guest)} · ${reservation.confirmationCode}`} onClose={onClose}><form className="modal-form" onSubmit={cancel}><div className="card-notice danger"><strong>Confirm reservation cancellation</strong>Are you sure you want to cancel reservation <strong>{reservation.confirmationCode}</strong> for {guestName(reservation.guest)} ({dateLabel(reservation.arrivalDate)} – {dateLabel(reservation.departureDate)})? Any assigned room will be released immediately.</div><Field label="Cancellation note (optional)"><input placeholder="e.g. Guest called to cancel, flight delay, schedule change" value={note} onChange={e=>setNote(e.target.value)} autoFocus/></Field>{error&&<div className="form-error">{error}</div>}<div className="modal-actions"><button type="button" className="secondary-button" onClick={onClose} disabled={busy}>Keep reservation</button><button type="submit" className="primary-button danger-button" disabled={busy}><X size={16}/>{busy?'Cancelling…':'Confirm cancellation'}</button></div></form></Modal>;}
-function EditReservationModal({reservation,rooms,onClose,onSaved}:{reservation:Reservation;rooms:Room[];onClose:()=>void;onSaved:()=>void}){const [error,setError]=useState(''),[busy,setBusy]=useState(false);async function submit(e:FormEvent<HTMLFormElement>){e.preventDefault();const f=new FormData(e.currentTarget);setBusy(true);setError('');try{await patch(`/reservations/${reservation.id}`,{arrivalDate:f.get('arrival'),departureDate:f.get('departure'),roomId:f.get('room')||null,nightlyRate:Number(f.get('rate')),depositAmount:Number(f.get('deposit')),depositMethod:f.get('depositMethod'),notes:f.get('notes')||undefined});onSaved();}catch(e){setError(e instanceof Error?e.message:'Unable to update reservation');}finally{setBusy(false);}}return <Modal title="Edit reservation" subtitle={`${guestName(reservation.guest)} · ${reservation.confirmationCode}`} onClose={onClose}><form className="modal-form" onSubmit={submit}><div className="form-grid two"><Field label="Arrival"><input name="arrival" type="date" defaultValue={reservation.arrivalDate.slice(0,10)} required/></Field><Field label="Departure"><input name="departure" type="date" defaultValue={reservation.departureDate.slice(0,10)} required/></Field><Field label="Room"><select name="room" defaultValue={reservation.roomId??''}><option value="">Unassigned</option>{rooms.map(r=><option key={r.id} value={r.id}>{r.number} · {r.type}</option>)}</select></Field><Field label="Nightly rate"><input name="rate" type="number" min="0" step="0.01" defaultValue={Number(reservation.nightlyRate)} required/></Field><Field label="Deposit"><input name="deposit" type="number" min="0" step="0.01" defaultValue={Number(reservation.depositAmount)}/></Field><Field label="Deposit method"><select name="depositMethod" defaultValue={reservation.depositMethod??'CASH'}>{reservation.depositMethod&&!['CASH','COOPAY_EBIRR','EBIRR_KAAFI','CBE_BANK','OTHER'].includes(reservation.depositMethod)&&<option value={reservation.depositMethod}>Previous method · {reservation.depositMethod.replaceAll('_',' ')}</option>}<option value="CASH">Cash</option><option value="COOPAY_EBIRR">Coopay Ebirr</option><option value="EBIRR_KAAFI">Ebirr Kaafi</option><option value="CBE_BANK">CBE Bank</option><option value="OTHER">Other</option></select></Field><Field label="Notes"><input name="notes" defaultValue="" placeholder="Reservation notes"/></Field></div>{error&&<div className="form-error">{error}</div>}<div className="modal-actions"><button type="button" className="secondary-button" onClick={onClose}>Cancel</button><button className="primary-button" disabled={busy}><Check size={16}/>{busy?'Saving…':'Save changes'}</button></div></form></Modal>;}
-function GuestDetailsModal({guest,onClose}:{guest:Guest;onClose:()=>void}){const {data,loading,error}=useLoad<any>(`/guests/${guest.id}`,[guest.id]);return <Modal title={guestName(guest)} subtitle="Guest profile and stay history" onClose={onClose} wide>{loading?<Loading/>:!data?<ErrorPanel message={error}/>:<div className="guest-detail-body"><div className="guest-detail-grid"><div className="guest-detail-item"><Phone size={15}/><span><small>Phone</small><strong>{data.phone||'Not provided'}</strong></span></div><div className="guest-detail-item"><Mail size={15}/><span><small>Email</small><strong>{data.email||'Not provided'}</strong></span></div><div className="guest-detail-item"><MapPin size={15}/><span><small>Nationality</small><strong>{data.nationality||'Not provided'}</strong></span></div><div className="guest-detail-item"><IdCard size={15}/><span><small>ID details</small><strong>{[data.idType?.replaceAll('_',' '),data.idNumber].filter(Boolean).join(' · ')||'Not provided'}</strong></span></div></div>{data.insights&&<div className="guest-detail-stats"><Metric label="Total stays" value={data.insights.totalStays}/><Metric label="Total nights" value={data.insights.totalNights}/><Metric label="Total spent" value={money(data.insights.totalSpent)}/><Metric label="Last stay" value={dateLabel(data.insights.lastStayDate,{year:'numeric',month:'short',day:'numeric'})}/></div>}{(data.preferences||data.notes)&&<div className="guest-notes"><strong>Preferences and notes</strong><p>{data.preferences||'No preferences saved.'}</p>{data.notes&&<p>{data.notes}</p>}</div>}<SectionHeading title="Stay history" meta={`${data.stays?.length??0} stays`}/>{data.stays?.length?<div className="table-wrap"><table><thead><tr><th>Room</th><th>Check-in</th><th>Check-out</th><th>Status</th></tr></thead><tbody>{data.stays.map((stay:any)=><tr key={stay.id}><td>Room {stay.room.number}</td><td>{dateLabel(stay.checkInAt,{year:'numeric',month:'short',day:'numeric'})}</td><td>{dateLabel(stay.checkOutAt??stay.expectedCheckOut,{year:'numeric',month:'short',day:'numeric'})}</td><td><Badge value={stay.status}/></td></tr>)}</tbody></table></div>:<Empty title="No completed stays yet" copy="Past and current stays will appear here."/>}</div>}</Modal>;}
-function MonthlyBoard({rooms,reservations,month,onGuest}:{rooms:Room[];reservations:Reservation[];month:string;onGuest:(guest:Guest)=>void}) { const count=new Date(Number(month.slice(0,4)),Number(month.slice(5,7)),0).getDate();const days=Array.from({length:count},(_,i)=>i+1);return <Card className="month-board-card"><div className="month-board-scroll"><table className="month-board"><thead><tr><th>Room</th>{days.map(d=><th key={d}>{d}</th>)}</tr></thead><tbody>{rooms.map(room=><tr key={room.id}><th>{room.number}<small>{room.type}</small></th>{days.map(d=>{const date=`${month}-${String(d).padStart(2,'0')}`;const res=reservations.find(r=>r.roomId===room.id&&r.arrivalDate.slice(0,10)<=date&&r.departureDate.slice(0,10)>date);return <td key={d}>{res&&<button type="button" className={`board-stay ${res.source.toLowerCase()}`} title={`Open ${guestName(res.guest)} · ${res.confirmationCode}`} onClick={()=>onGuest(res.guest)} aria-label={`View ${guestName(res.guest)} guest details`}>{res.arrivalDate.slice(0,10)===date?guestName(res.guest):'·'}</button>}</td>})}</tr>)}</tbody></table></div><div className="board-legend"><span><i className="board-swatch confirmed"/>Reserved</span><span><i className="board-swatch walk-in"/>Walk-in</span><span>Click a guest name in the board to view guest details</span></div></Card>; }
-
-function RoomActionModal({room,onClose,onCheckIn,onReserve}:{room:Room;onClose:()=>void;onCheckIn:()=>void;onReserve:()=>void}){return <Modal title={`Room ${room.number}`} subtitle={`${room.type} · ${statusLabels[room.status]} · ${money(room.baseRate)} per night`} onClose={onClose}><div className="room-action-options"><p>What would you like to do with this room?</p><button className="primary-button" onClick={onCheckIn}><DoorOpen size={16}/> Check in a guest</button><button className="secondary-button" onClick={onReserve}><CalendarDays size={16}/> Make a reservation</button></div></Modal>;}
-
-function CheckInModal({reservation,initialRoomId,onClose,onSave}:{reservation?:Reservation;initialRoomId?:string;onClose:()=>void;onSave:(a:()=>Promise<unknown>,s:string)=>void}) { const {data:rooms}=useLoad<Room[]>('/rooms');const [roomId,setRoomId]=useState(reservation?.roomId??initialRoomId??'');const [image,setImage]=useState<File|null>(null);const {data:freeRooms}=useLoad<Room[]>('/rooms');const available=freeRooms?.filter(r=>!['OCCUPIED','DIRTY','OUT_OF_ORDER'].includes(r.status))??[];async function submit(e:FormEvent<HTMLFormElement>){e.preventDefault();const form=new FormData(e.currentTarget);onSave(async()=>{const result=await post<{stay:Stay;guest:Guest}>('/stays/check-in',{reservationId:reservation?.id,guestId:reservation?.guest.id,guest:reservation?undefined:{firstName:form.get('firstName'),lastName:form.get('lastName'),phone:form.get('phone')},roomId,expectedCheckOut:form.get('departure'),nightlyRate:Number(form.get('rate')||0),adults:Number(form.get('adults')||1),idType:form.get('idType')||undefined,idNumber:form.get('idNumber')||undefined});if(image){const data=new FormData();data.set('image',image);data.set('documentType',String(form.get('idType')||'OTHER'));try{await api(`/guests/${result.guest.id}/documents`,{method:'POST',body:data});}catch{window.dispatchEvent(new CustomEvent('hms:toast',{detail:'Check-in is complete, but the ID photo did not upload. Retry it from the guest profile when storage is available.'}));}}return result;},'Guest checked in');}
- return <Modal title="Check in guest" subtitle={reservation?`${guestName(reservation.guest)} · ${reservation.confirmationCode}`:'Walk-in guest'} onClose={onClose}><form className="modal-form" onSubmit={submit}>{!reservation&&<div className="form-grid two"><Field label="First name"><input name="firstName" required/></Field><Field label="Last name"><input name="lastName" required/></Field><Field label="Phone"><input name="phone"/></Field></div>}<Field label="Assign room"><select required value={roomId} onChange={e=>setRoomId(e.target.value)}><option value="">Choose a room</option>{available.map(r=><option value={r.id} key={r.id}>{r.number} · {r.type} · {statusLabels[r.status]}</option>)}</select></Field><div className="form-grid two"><Field label="Expected departure"><input name="departure" type="date" defaultValue={reservation?.departureDate.slice(0,10)??shiftDay(today(),1)} required/></Field><Field label="Nightly rate"><input name="rate" type="number" min="0" step="0.01" defaultValue={Number(reservation?.nightlyRate??rooms?.find(r=>r.id===roomId)?.baseRate??0)} required/></Field><Field label="Adults"><input name="adults" type="number" min="1" defaultValue="1"/></Field><Field label="ID type"><select name="idType"><option value="">Choose type</option><option value="NATIONAL_ID">National ID</option><option value="PASSPORT">Passport</option><option value="DRIVERS_LICENSE">Driver's license</option><option value="OTHER">Other</option></select></Field><Field label="ID number"><input name="idNumber"/></Field><Field label="ID photo (private)"><input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" onChange={e=>setImage(e.target.files?.[0]??null)}/></Field></div><div className="privacy-note"><span className="lock-dot"/> ID photos are compressed before private storage. Access is limited to authorized staff.</div><div className="modal-actions"><button type="button" className="secondary-button" onClick={onClose}>Cancel</button><button className="primary-button"><Check size={16}/> Complete check-in</button></div></form></Modal>;
-}
-
-function GuestsPage({flash}:{flash:(s:string)=>void}) {
-  const [query,setQuery]=useState(''),[selected,setSelected]=useState<string|null>(null),[version,setVersion]=useState(0),[editing,setEditing]=useState(false);
-  const {data:guests,loading}=useLoad<Guest[]>(`/guests?q=${encodeURIComponent(query)}`,[query,version]);
-  const {data:detail}=useLoad<any>(selected?`/guests/${selected}`:null,[selected,version]);
-  return <><PageTitle eyebrow="RELATIONSHIPS" title="Guests" subtitle="Guest profiles, preferences and stay history." action={<div className="search-box guest-search"><Search size={16}/><input placeholder="Name, phone, ID number" value={query} onChange={e=>setQuery(e.target.value)}/></div>}/><div className="guest-layout"><Card className="guest-list-card"><SectionHeading title="Guest directory" meta={`${guests?.length??0} guests`}/>{loading?<Loading/>:guests?.length?<div className="guest-list">{guests.map(g=><button className={`guest-list-item ${selected===g.id?'selected':''}`} onClick={()=>setSelected(g.id)} key={g.id}><span className="avatar avatar-guest">{g.firstName[0]}{g.lastName[0]}</span><span><strong>{guestName(g)}</strong><small>{g.phone??g.email??'No contact details'}</small></span><ChevronRight size={16}/></button>)}</div>:<Empty title="No guests found" copy="Try another name or phone number."/>}</Card><Card className="guest-detail-card">{detail?<><div className="guest-profile-head"><div className="avatar avatar-large">{detail.firstName[0]}{detail.lastName[0]}</div><div><h2>{guestName(detail)}</h2><p>{detail.phone??'No phone'}{detail.nationality?` · ${detail.nationality}`:''}</p></div><button className="secondary-button" onClick={()=>setEditing(true)}>Edit profile</button></div>{detail.insights&&<div className="guest-insight-grid"><Metric label="Total stays" value={detail.insights.totalStays}/><Metric label="Total nights" value={detail.insights.totalNights}/><Metric label="Total spent" value={money(detail.insights.totalSpent)}/><Metric label="Last stay" value={dateLabel(detail.insights.lastStayDate)}/></div>}<div className="guest-info-grid"><div><span>ID document</span><strong>{detail.idType?`${statusLabels[detail.idType]??detail.idType} · ${detail.idNumber??'no number'}`:'Not recorded'}</strong></div><div><span>Preferences</span><strong>{detail.preferences??'No preferences noted'}</strong></div><div><span>Notes</span><strong>{detail.notes??'No notes'}</strong></div></div><SectionHeading title="Stay history" meta={`${detail.stays.length} stays`}/>{detail.stays.length?<div className="table-wrap"><table><thead><tr><th>Dates</th><th>Room</th><th>Status</th><th>Paid</th></tr></thead><tbody>{detail.stays.map((s:any)=><tr key={s.id}><td>{dateLabel(s.checkInAt)} – {dateLabel(s.checkOutAt??s.expectedCheckOut)}</td><td>{s.room.number}</td><td><Badge value={s.status}/></td><td>{money(s.folio?.payments.reduce((n:number,p:any)=>n+Number(p.amount),0))}</td></tr>)}</tbody></table></div>:<Empty title="No stay history yet" copy="Completed visits will appear here."/>}<SectionHeading title="ID documents"/>{detail.documents.length?<div className="document-list">{detail.documents.map((doc:any)=><button className="document-item" key={doc.id} onClick={async()=>{try{const {url}=await api<{url:string}>(`/guests/documents/${doc.id}/url`);window.open(url,'_blank','noopener');}catch(e){flash(e instanceof Error?e.message:'Unable to open document');}}}><FileText size={17}/><span>{statusLabels[doc.documentType]??doc.documentType} · {Math.round(doc.sizeBytes/1024)} KB</span><span>View securely <ChevronRight size={14}/></span></button>)}</div>:<p className="subtle-copy">No ID image stored for this guest.</p>}<GuestDocumentUpload guestId={detail.id} onUploaded={()=>setVersion(v=>v+1)}/></>:<Empty title="Select a guest" copy="Choose a profile to see stay history and guest insights."/>}</Card></div>{editing&&detail&&<GuestEditModal guest={detail} onClose={()=>setEditing(false)} onSaved={()=>{setEditing(false);setVersion(x=>x+1);flash('Guest profile updated');}}/>}</>;
-}
-function GuestDocumentUpload({guestId,onUploaded}:{guestId:string;onUploaded:()=>void}){const [file,setFile]=useState<File|null>(null),[type,setType]=useState('NATIONAL_ID'),[busy,setBusy]=useState(false),[error,setError]=useState('');return <form className="document-upload" onSubmit={async e=>{e.preventDefault();if(!file)return;setBusy(true);setError('');const data=new FormData();data.set('image',file);data.set('documentType',type);try{await api(`/guests/${guestId}/documents`,{method:'POST',body:data});setFile(null);onUploaded();}catch(e){setError(e instanceof Error?e.message:'Unable to upload ID photo');}finally{setBusy(false);}}}><SectionHeading title="Add an ID photo" meta="Private storage · compressed to WebP"/><div className="form-grid two"><Field label="Document type"><select value={type} onChange={e=>setType(e.target.value)}><option value="NATIONAL_ID">National ID</option><option value="PASSPORT">Passport</option><option value="DRIVERS_LICENSE">Driver's license</option><option value="OTHER">Other</option></select></Field><Field label="Photo"><input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" onChange={e=>setFile(e.target.files?.[0]??null)}/></Field><div className="form-actions"><button className="secondary-button" disabled={!file||busy}><Plus size={15}/>{busy?'Uploading…':'Upload ID photo'}</button></div></div>{error&&<div className="form-error">{error}</div>}</form>;}
-function GuestEditModal({guest,onClose,onSaved}:{guest:Guest;onClose:()=>void;onSaved:()=>void}){const [error,setError]=useState(''),[busy,setBusy]=useState(false);async function submit(e:FormEvent<HTMLFormElement>){e.preventDefault();const f=new FormData(e.currentTarget);setBusy(true);try{await patch(`/guests/${guest.id}`,{firstName:f.get('firstName'),lastName:f.get('lastName'),phone:f.get('phone'),email:f.get('email')||null,nationality:f.get('nationality'),idType:f.get('idType')||null,idNumber:f.get('idNumber')||null,preferences:f.get('preferences')||null,notes:f.get('notes')||null});onSaved();}catch(e){setError(e instanceof Error?e.message:'Could not update guest');}finally{setBusy(false);}}return <Modal title="Edit guest profile" subtitle={guestName(guest)} onClose={onClose}><form className="modal-form" onSubmit={submit}><div className="form-grid two"><Field label="First name"><input name="firstName" defaultValue={guest.firstName} required/></Field><Field label="Last name"><input name="lastName" defaultValue={guest.lastName} required/></Field><Field label="Phone"><input name="phone" defaultValue={guest.phone??''}/></Field><Field label="Email"><input name="email" type="email" defaultValue={guest.email??''}/></Field><Field label="Nationality"><input name="nationality" defaultValue={guest.nationality??''}/></Field><Field label="ID type"><select name="idType" defaultValue={guest.idType??''}><option value="">Not recorded</option><option value="NATIONAL_ID">National ID</option><option value="PASSPORT">Passport</option><option value="DRIVERS_LICENSE">Driver's license</option><option value="OTHER">Other</option></select></Field><Field label="ID number"><input name="idNumber" defaultValue={guest.idNumber??''}/></Field><Field label="Preferences"><input name="preferences" defaultValue={guest.preferences??''}/></Field><Field label="Notes" className="wide-field"><input name="notes" defaultValue={guest.notes??''}/></Field></div>{error&&<div className="form-error">{error}</div>}<div className="modal-actions"><button type="button" className="secondary-button" onClick={onClose}>Cancel</button><button className="primary-button" disabled={busy}><Check size={16}/>{busy?'Saving…':'Save profile'}</button></div></form></Modal>;}
-function Metric({label,value}:{label:string;value:ReactNode}){return <div className="metric-card"><span>{label}</span><strong>{value}</strong></div>;}
-
-function InHousePage({openFolio,flash}:{openFolio:(s:Stay)=>void;flash:(s:string)=>void}) { const {data:stays,loading,error,reload}=useLoad<Stay[]>('/stays/in-house');const [checkingOut,setCheckingOut]=useState<Stay|null>(null);return <><PageTitle eyebrow="GUEST SERVICES" title="Guests in-house" subtitle="Active stays, folios and room assignments." action={<button className="primary-button" onClick={()=>window.dispatchEvent(new CustomEvent('hms:open-walkin'))}><Plus size={16}/> Walk-in check-in</button>}/>{loading?<Loading/>:!stays?<ErrorPanel message={error}/>:stays.length===0?<Card><Empty title="No guests checked in" copy="New arrivals will show up here after check-in."/></Card>:<div className="inhouse-grid">{stays.map(s=><Card className="inhouse-card" key={s.id}><div className="inhouse-card-top"><div className="avatar avatar-guest">{s.guest.firstName[0]}{s.guest.lastName[0]}</div><Badge value="OCCUPIED"/></div><h3>{guestName(s.guest)}</h3><span className="inhouse-room">Room {s.room.number} · {s.room.type}</span><div className="inhouse-dates"><div><span>CHECKED IN</span><strong>{dateLabel(s.checkInAt)}</strong></div><div><span>EXPECTED OUT</span><strong>{dateLabel(s.expectedCheckOut)}</strong></div></div><div className="folio-mini"><span>{s.folio?.folioNumber??'Folio'} · Balance</span><strong>{money((s.folio?.items.reduce((n,x)=>n+Number(x.amount),0)??0)-(s.folio?.payments.reduce((n,x)=>n+Number(x.amount),0)??0))}</strong></div><div className="inhouse-actions"><button className="secondary-button" onClick={()=>openFolio(s)}><CreditCard size={15}/> Folio</button><button className="small-button" onClick={()=>setCheckingOut(s)}>Check out</button></div></Card>)}</div>}{checkingOut&&<CheckOutModal stay={checkingOut} onClose={()=>setCheckingOut(null)} onCheckedOut={()=>{setCheckingOut(null);reload();}} openFolio={openFolio} flash={flash}/>}</>; }
-
-function CheckOutModal({stay,onClose,onCheckedOut,openFolio,flash}:{stay:Stay;onClose:()=>void;onCheckedOut:()=>void;openFolio:(s:Stay)=>void;flash:(s:string)=>void}){
-  const [notes,setNotes]=useState('');
-  const [busy,setBusy]=useState(false);
-  const [error,setError]=useState('');
-  const charges=stay.folio?.items.reduce((n,x)=>n+Number(x.amount),0)??0;
-  const paid=stay.folio?.payments.reduce((n,x)=>n+Number(x.amount),0)??0;
-  const balance=charges-paid;
-  const hasOutstanding=balance>0;
-  async function checkout(e:FormEvent){
-    e.preventDefault();
-    if(hasOutstanding){setError(`Outstanding balance of ${money(balance)} must be settled before checkout.`);return;}
-    setBusy(true);setError('');
-    try{
-      await post(`/stays/${stay.id}/check-out`,{notes:notes.trim()||undefined});
-      flash(`${guestName(stay.guest)} checked out · Room ${stay.room.number} marked dirty`);
-      onCheckedOut();
-    }catch(err){
-      setError(err instanceof Error?err.message:'Could not complete check-out');
-      setBusy(false);
-    }
-  }
-  return <Modal title="Guest check-out" subtitle={`${guestName(stay.guest)} · Room ${stay.room.number}`} onClose={onClose}><form className="modal-form" onSubmit={checkout}>{hasOutstanding?<div className="card-notice warning"><strong>Outstanding balance: {money(balance)}</strong>This stay cannot be checked out until the folio is settled to zero. Please record payment before finalizing departure.</div>:<div className="card-notice info"><strong>Folio is settled in full</strong>Room {stay.room.number} will be marked <strong>Dirty</strong>; staff can mark it free from the room board when it is ready.</div>}<Field label="Departure notes (optional)"><input placeholder="e.g. Keys returned, luggage stored, minibar verified" value={notes} onChange={e=>setNotes(e.target.value)} autoFocus={!hasOutstanding}/></Field>{error&&<div className="form-error">{error}</div>}<div className="modal-actions">{hasOutstanding?<><button type="button" className="secondary-button" onClick={onClose}>Cancel</button><button type="button" className="primary-button" onClick={()=>{onClose();openFolio(stay);}}><CreditCard size={15}/> Settle folio</button></>:<><button type="button" className="secondary-button" onClick={onClose} disabled={busy}>Cancel</button><button type="submit" className="primary-button" disabled={busy}><Check size={16}/>{busy?'Checking out…':'Complete check-out'}</button></>}</div></form></Modal>;
-}
-
-function FolioModal({stay,onClose,flash}:{stay:Stay;onClose:()=>void;flash:(s:string)=>void}) {
-  const [v,setV]=useState(0);
-  const {data:folio}=useLoad<any>(stay.folio?`/billing/folio/${stay.folio.id}`:null,[stay.id,v]);
-  const [activeCard,setActiveCard]=useState<'none'|'add_charge'|'record_payment'>('none');
-  const [editingItem,setEditingItem]=useState<any|null>(null);
-  const [removingItem,setRemovingItem]=useState<any|null>(null);
-  if(!stay.folio)return <Modal title="Folio" onClose={onClose}><Empty title="No folio found" copy="This stay has no billing folio."/></Modal>;
-  const charge=folio?.summary?.charges??0,paid=folio?.summary?.paid??0;
-  async function record(action:()=>Promise<unknown>,message:string){try{await action();setV(x=>x+1);flash(message);}catch(e){flash(e instanceof Error?e.message:'Could not update folio');throw e;}}
-  async function printInvoice(){try{const inv=await api<Invoice>(`/billing/folio/${folio.id}/invoice`);const w=window.open('','_blank');if(w){const printDate=new Date().toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'});const formatDate=(value?:string|null)=>value?new Date(value).toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'}):'—';w.document.write(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Invoice ${escapeHtml(inv.folioNumber)}</title><style>
-    @page{size:A4;margin:18mm}*{box-sizing:border-box}body{margin:0;background:#fff;color:#172033;font:14px/1.5 Arial,Helvetica,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}.invoice{max-width:780px;margin:36px auto;padding:0 24px}.topline{height:5px;background:#4338ca;margin-bottom:34px}.header{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;padding-bottom:28px;border-bottom:1px solid #e5e7eb}.brand{display:flex;align-items:center;gap:12px}.mark{display:grid;place-items:center;width:42px;height:42px;border-radius:11px;background:#4338ca;color:#fff;font-size:19px;font-weight:700}.hotel{font-size:20px;font-weight:700;letter-spacing:-.4px;color:#111827}.label{color:#6b7280;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase}.invoice-title{text-align:right}.invoice-title h1{margin:2px 0 4px;font-size:29px;line-height:1.1;letter-spacing:1px;color:#111827}.invoice-title strong{font-size:13px;color:#4338ca}.info-grid{display:grid;grid-template-columns:1.2fr 1fr;gap:18px;margin:28px 0}.info-card{padding:17px 18px;border:1px solid #e5e7eb;border-radius:10px}.info-card h2{margin:0 0 10px;color:#6b7280;font-size:10px;letter-spacing:1.1px;text-transform:uppercase}.info-card strong{display:block;color:#111827;font-size:15px}.info-card p{margin:3px 0;color:#596273;font-size:12px}.stay-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:0 0 30px;padding:16px 18px;background:#f8fafc;border-radius:10px}.stay-grid span{display:block;color:#6b7280;font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase}.stay-grid strong{display:block;margin-top:4px;color:#172033;font-size:13px}.section-title{margin:0 0 10px;color:#111827;font-size:13px;font-weight:700}.items{width:100%;border-collapse:collapse}.items th{padding:11px 12px;background:#f3f4f6;color:#596273;font-size:10px;letter-spacing:.8px;text-align:left;text-transform:uppercase}.items th:first-child{border-radius:7px 0 0 7px}.items th:last-child{border-radius:0 7px 7px 0}.items td{padding:14px 12px;border-bottom:1px solid #edf0f3;color:#374151;font-size:12px}.items .num{text-align:right;white-space:nowrap}.items td:first-child{font-weight:600;color:#172033}.after-items{display:grid;grid-template-columns:1fr 270px;gap:30px;margin-top:24px}.payment-note{color:#6b7280;font-size:11px}.payment-list{width:100%;border-collapse:collapse}.payment-list td{padding:7px 0;border-bottom:1px solid #edf0f3;color:#596273;font-size:11px}.payment-list td:last-child{text-align:right;color:#172033;font-weight:600;white-space:nowrap}.totals{padding:16px 18px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:10px}.total-row{display:flex;justify-content:space-between;gap:12px;padding:5px 0;color:#596273;font-size:12px}.total-row strong{color:#172033}.balance{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:10px -6px -6px;padding:13px 12px;background:#eef2ff;border-radius:7px;color:#3730a3;font-weight:700}.balance strong{font-size:18px;white-space:nowrap}.footer{margin-top:38px;padding-top:16px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;gap:16px;color:#6b7280;font-size:10px}.footer strong{color:#374151}@media(max-width:600px){.invoice{margin:18px auto;padding:0 14px}.header{gap:12px}.hotel{font-size:16px}.invoice-title h1{font-size:23px}.info-grid{grid-template-columns:1fr}.after-items{grid-template-columns:1fr}.stay-grid{gap:8px;padding:13px}.items th,.items td{padding:10px 7px;font-size:10px}.mark{width:36px;height:36px}}@media print{body{font-size:12px}.invoice{max-width:none;margin:0;padding:0}.topline{margin-bottom:26px}.info-card,.totals,.stay-grid{-webkit-print-color-adjust:exact;print-color-adjust:exact}.items tr,.payment-list tr{break-inside:avoid}.footer{margin-top:28px}}
-    </style></head><body><main class="invoice"><div class="topline"></div><header class="header"><div class="brand"><div class="mark">S</div><div><div class="hotel">${escapeHtml(inv.hotel)}</div><div class="label">Guest statement</div></div></div><div class="invoice-title"><div class="label">Invoice</div><h1>INVOICE</h1><strong>${escapeHtml(inv.folioNumber)}</strong></div></header><section class="info-grid"><div class="info-card"><h2>Bill to</h2><strong>${escapeHtml(inv.guest.firstName)} ${escapeHtml(inv.guest.lastName)}</strong>${inv.guest.phone?`<p>${escapeHtml(inv.guest.phone)}</p>`:''}${inv.guest.email?`<p>${escapeHtml(inv.guest.email)}</p>`:''}</div><div class="info-card"><h2>Invoice details</h2><p>Invoice number <strong>${escapeHtml(inv.folioNumber)}</strong></p><p>Issued <strong>${escapeHtml(printDate)}</strong></p><p>Room <strong>${escapeHtml(inv.room.number)} · ${escapeHtml(inv.room.type)}</strong></p></div></section><section class="stay-grid"><div><span>Check-in</span><strong>${escapeHtml(formatDate(inv.checkIn))}</strong></div><div><span>Check-out</span><strong>${escapeHtml(formatDate(inv.checkOut))}</strong></div><div><span>Room</span><strong>${escapeHtml(inv.room.number)}</strong></div></section><h2 class="section-title">Charges</h2><table class="items"><thead><tr><th>Description</th><th class="num">Qty</th><th class="num">Unit price</th><th class="num">Amount</th></tr></thead><tbody>${inv.items.map(item=>`<tr><td>${escapeHtml(item.description)}</td><td class="num">${escapeHtml(item.quantity)}</td><td class="num">${money(item.unitPrice)}</td><td class="num">${money(item.amount)}</td></tr>`).join('')}</tbody></table><section class="after-items"><div><h2 class="section-title">Payments received</h2>${inv.payments.length?`<table class="payment-list"><tbody>${inv.payments.map(payment=>`<tr><td>${escapeHtml(payment.method.replaceAll('_',' '))}${payment.reference?` · ${escapeHtml(payment.reference)}`:''}<br><span>${escapeHtml(formatDate(payment.receivedAt))}</span></td><td>${money(payment.amount)}</td></tr>`).join('')}</tbody></table>`:'<p class="payment-note">No payments have been recorded.</p>'}</div><div class="totals"><div class="total-row"><span>Total charges</span><strong>${money(inv.total)}</strong></div><div class="total-row"><span>Payments received</span><strong>− ${money(inv.paid)}</strong></div><div class="balance"><span>${Number(inv.balance)>0?'Balance due':'Balance'}</span><strong>${money(inv.balance)}</strong></div></div></section><footer class="footer"><span><strong>${escapeHtml(inv.hotel)}</strong> · Thank you for your stay.</span><span>Printed ${escapeHtml(printDate)}</span></footer></main><script>window.print()</script></body></html>`);w.document.close();}}catch(e){flash(e instanceof Error?e.message:'Unable to create invoice');}}
-  return <Modal title={`Guest folio · ${stay.folio.folioNumber}`} subtitle={`${guestName(stay.guest)} · Room ${stay.room.number}`} onClose={onClose} wide><div className="folio-body">{!folio?<Loading/>:<><div className="folio-summary"><Metric label="Charges" value={money(charge)}/><Metric label="Paid" value={money(paid)}/><Metric label="Balance due" value={money(charge-paid)}/></div>
-  {editingItem&&<EditChargeCard folioId={folio.id} item={editingItem} onSave={record} onCancel={()=>setEditingItem(null)}/>}
-  {removingItem&&<RemoveChargeCard folioId={folio.id} item={removingItem} onSave={record} onCancel={()=>setRemovingItem(null)}/>}
-  {activeCard==='add_charge'&&<AddChargeCard folioId={folio.id} onSave={record} onCancel={()=>setActiveCard('none')}/>}
-  {activeCard==='record_payment'&&<RecordPaymentCard folioId={folio.id} balanceDue={Math.max(0,charge-paid)} onSave={record} onCancel={()=>setActiveCard('none')}/>}
-  <div className="table-wrap"><table><thead><tr><th>Description</th><th>Qty</th><th>Price</th><th>Amount</th>{folio.status==='OPEN'&&<th>Actions</th>}</tr></thead><tbody>{folio.items.map((i:any)=><tr key={i.id}><td>{i.description}</td><td>{Number(i.quantity)}</td><td>{money(i.unitPrice)}</td><td>{money(i.amount)}</td>{folio.status==='OPEN'&&<td><button className="small-button" onClick={()=>{setRemovingItem(null);setActiveCard('none');setEditingItem(i);}}>Edit</button> <button className="small-button" onClick={()=>{setEditingItem(null);setActiveCard('none');setRemovingItem(i);}}>Remove</button></td>}</tr>)}</tbody></table></div><SectionHeading title="Payments"/>{folio.payments.map((p:any)=><div className="payment-row" key={p.id}><span>{statusLabels[p.method]??p.method.replace('_',' ')}{p.reference?` · ${p.reference}`:''}</span><strong>{money(p.amount)}</strong></div>)}<div className="folio-actions">{folio.status==='OPEN'&&<><button className="secondary-button" onClick={()=>{setEditingItem(null);setRemovingItem(null);setActiveCard(activeCard==='add_charge'?'none':'add_charge');}}><Plus size={15}/> Add charge</button><button className="secondary-button" disabled={charge<=paid} onClick={()=>{setEditingItem(null);setRemovingItem(null);setActiveCard(activeCard==='record_payment'?'none':'record_payment');}}><CreditCard size={15}/> Record payment</button></>}<button className="primary-button" onClick={printInvoice}><FileText size={15}/> Print invoice</button></div></>}</div></Modal>;
-}
-
-function AddChargeCard({folioId,onSave,onCancel}:{folioId:string;onSave:(a:()=>Promise<unknown>,msg:string)=>Promise<void>;onCancel:()=>void}){
-  const [desc,setDesc]=useState(''),[type,setType]=useState<'EXTRA'|'TAX'|'DISCOUNT'>('EXTRA'),[qty,setQty]=useState(1),[price,setPrice]=useState<number|''>(''),[busy,setBusy]=useState(false),[error,setError]=useState('');
-  const total=(Number(price)||0)*(Number(qty)||1)*(type==='DISCOUNT'?-1:1);
-  async function submit(e:FormEvent){
-    e.preventDefault();
-    if(!desc.trim()){setError('Enter a description for this charge');return;}
-    if(price===''||isNaN(Number(price))){setError('Enter a valid unit price');return;}
-    setBusy(true);setError('');
-    try{
-      await onSave(async()=>{
-        await post(`/billing/folio/${folioId}/items`,{description:desc.trim(),unitPrice:Number(price),quantity:Number(qty)||1,type});
-      },'Charge added to folio');
-      onCancel();
-    }catch(err){
-      setError(err instanceof Error?err.message:'Could not add charge');
-      setBusy(false);
-    }
-  }
-  return <Card className="folio-action-card"><SectionHeading title="Add charge to folio" meta="Post extra services, room amenities or taxes"/><form onSubmit={submit}><div className="form-grid"><Field label="Description"><input placeholder="e.g. Breakfast buffet, laundry, airport transfer" required value={desc} onChange={e=>setDesc(e.target.value)} autoFocus/></Field><Field label="Charge category"><select value={type} onChange={e=>setType(e.target.value as any)}><option value="EXTRA">Extra service</option><option value="TAX">Tax charge</option><option value="DISCOUNT">Discount adjustment</option></select></Field><Field label="Quantity"><input type="number" min="1" step="1" value={qty} onChange={e=>setQty(Math.max(1,Number(e.target.value)))} required/></Field><Field label="Unit price"><input type="number" step="0.01" placeholder="0.00" value={price} onChange={e=>setPrice(e.target.value===''? '':Number(e.target.value))} required/></Field><div className="wide-field"><div className="total-preview"><span>Estimated item total</span><strong>{money(total)}</strong></div></div></div>{error&&<div className="form-error" style={{marginTop:10}}>{error}</div>}<div className="card-actions"><button type="button" className="secondary-button" onClick={onCancel} disabled={busy}>Cancel</button><button type="submit" className="primary-button" disabled={busy}><Check size={15}/>{busy?'Adding…':'Add charge'}</button></div></form></Card>;
-}
-
-function RecordPaymentCard({folioId,balanceDue,onSave,onCancel}:{folioId:string;balanceDue:number;onSave:(a:()=>Promise<unknown>,msg:string)=>Promise<void>;onCancel:()=>void}){
-  const [amount,setAmount]=useState<number|''>((balanceDue>0?balanceDue:'')),[method,setMethod]=useState<'CASH'|'COOPAY_EBIRR'|'EBIRR_KAAFI'|'CBE_BANK'|'OTHER'>('CASH'),[reference,setReference]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState('');
-  async function submit(e:FormEvent){
-    e.preventDefault();
-    const num=Number(amount);
-    if(!num||num<=0){setError('Enter a payment amount greater than zero');return;}
-    if(num>balanceDue){setError(`Payment cannot exceed outstanding balance of ${money(balanceDue)}`);return;}
-    setBusy(true);setError('');
-    try{
-      await onSave(async()=>{
-        await post(`/billing/folio/${folioId}/payments`,{amount:num,method,reference:reference.trim()||undefined});
-      },'Payment recorded');
-      onCancel();
-    }catch(err){
-      setError(err instanceof Error?err.message:'Could not record payment');
-      setBusy(false);
-    }
-  }
-  return <Card className="folio-action-card"><SectionHeading title="Record payment" meta={`Outstanding balance due: ${money(balanceDue)}`}/><form onSubmit={submit}><div className="form-grid"><Field label="Payment amount"><input type="number" step="0.01" min="0.01" max={balanceDue} value={amount} onChange={e=>setAmount(e.target.value===''? '':Number(e.target.value))} required autoFocus/></Field><Field label="Payment method"><select value={method} onChange={e=>setMethod(e.target.value as any)}><option value="CASH">Cash</option><option value="COOPAY_EBIRR">Coopay Ebirr</option><option value="EBIRR_KAAFI">Ebirr Kaafi</option><option value="CBE_BANK">CBE Bank</option><option value="OTHER">Other</option></select></Field><Field label="Reference / notes (optional)"><input placeholder="e.g. Receipt #, transaction code" value={reference} onChange={e=>setReference(e.target.value)}/></Field></div>{error&&<div className="form-error" style={{marginTop:10}}>{error}</div>}<div className="card-actions"><button type="button" className="secondary-button" onClick={onCancel} disabled={busy}>Cancel</button><button type="submit" className="primary-button" disabled={busy}><CreditCard size={15}/>{busy?'Recording…':'Record payment'}</button></div></form></Card>;
-}
-
-function EditChargeCard({folioId,item,onSave,onCancel}:{folioId:string;item:any;onSave:(a:()=>Promise<unknown>,msg:string)=>Promise<void>;onCancel:()=>void}){
-  const [description,setDescription]=useState(item.description),[quantity,setQuantity]=useState<number>(Number(item.quantity)||1),[unitPrice,setUnitPrice]=useState<number>(Number(item.unitPrice)||0),[busy,setBusy]=useState(false),[error,setError]=useState('');
-  async function submit(e:FormEvent){
-    e.preventDefault();
-    if(!description.trim()){setError('Enter a description');return;}
-    if(!quantity||quantity<=0){setError('Quantity must be at least 1');return;}
-    if(isNaN(unitPrice)){setError('Enter a valid price');return;}
-    setBusy(true);setError('');
-    try{
-      await onSave(async()=>{
-        await patch(`/billing/folio/${folioId}/items/${item.id}`,{description:description.trim(),quantity:Number(quantity),unitPrice:Number(unitPrice)});
-      },'Charge updated');
-      onCancel();
-    }catch(err){
-      setError(err instanceof Error?err.message:'Could not update charge');
-      setBusy(false);
-    }
-  }
-  return <Card className="folio-action-card"><SectionHeading title={`Edit charge · ${item.description}`} meta="Update item description, quantity, or unit price"/><form onSubmit={submit}><div className="form-grid"><Field label="Description"><input value={description} onChange={e=>setDescription(e.target.value)} required autoFocus/></Field><Field label="Quantity"><input type="number" min="1" value={quantity} onChange={e=>setQuantity(Number(e.target.value))} required/></Field><Field label="Unit price"><input type="number" step="0.01" value={unitPrice} onChange={e=>setUnitPrice(Number(e.target.value))} required/></Field><div className="wide-field"><div className="total-preview"><span>Updated total</span><strong>{money(quantity*unitPrice)}</strong></div></div></div>{error&&<div className="form-error" style={{marginTop:10}}>{error}</div>}<div className="card-actions"><button type="button" className="secondary-button" onClick={onCancel} disabled={busy}>Cancel</button><button type="submit" className="primary-button" disabled={busy}><Check size={15}/>{busy?'Saving…':'Save changes'}</button></div></form></Card>;
-}
-
-function RemoveChargeCard({folioId,item,onSave,onCancel}:{folioId:string;item:any;onSave:(a:()=>Promise<unknown>,msg:string)=>Promise<void>;onCancel:()=>void}){
-  const [busy,setBusy]=useState(false),[error,setError]=useState('');
-  async function confirmRemove(){
-    setBusy(true);setError('');
-    try{
-      await onSave(async()=>{
-        await api(`/billing/folio/${folioId}/items/${item.id}`,{method:'DELETE'});
-      },'Charge removed');
-      onCancel();
-    }catch(err){
-      setError(err instanceof Error?err.message:'Could not remove charge');
-      setBusy(false);
-    }
-  }
-  return <Card className="folio-action-card danger-card"><SectionHeading title="Remove charge item" meta="Deduct this charge from the guest folio"/><div className="card-notice danger">Are you sure you want to remove <strong>“{item.description}”</strong> ({money(item.amount)}) from this folio?</div>{error&&<div className="form-error" style={{marginTop:10}}>{error}</div>}<div className="card-actions"><button type="button" className="secondary-button" onClick={onCancel} disabled={busy}>Keep item</button><button type="button" className="primary-button danger-button" onClick={confirmRemove} disabled={busy}><Trash2 size={15}/>{busy?'Removing…':'Remove charge'}</button></div></Card>;
-}
-
-
-function ReportsPage({flash,role}:{flash:(s:string)=>void;role:string}) {const canSeeInsights=['ADMIN','MANAGER'].includes(role);const canSeeFinancials=['ADMIN','MANAGER','RECEPTIONIST'].includes(role);const canClose=canSeeInsights;const {data:insights,loading}=useLoad<any>(canSeeInsights?'/reports/guest-insights':null);const [dates,setDates]=useState({from:today().slice(0,7)+'-01',to:today()});const [revenue,setRevenue]=useState<any>(null);const [busy,setBusy]=useState(false);const run=async()=>{setBusy(true);try{setRevenue(await api(`/reports/revenue?from=${dates.from}&to=${dates.to}`));}catch(e){flash(e instanceof Error?e.message:'Could not load report');}finally{setBusy(false);}};useEffect(()=>{void run();},[]);const close=async()=>{try{const report=await post<any>('/reports/daily-close',{businessDate:today()});flash(report.alreadyClosed?`Daily close already saved · payments ${money(report.paymentsTotal)}`:`Daily close saved · payments ${money(report.paymentsTotal)}`);}catch(e){flash(e instanceof Error?e.message:'Unable to close day');}};return <><PageTitle eyebrow="INSIGHTS" title="Reports" subtitle="Revenue, occupancy trends and guest insights." action={canClose?<button className="secondary-button" onClick={close}><Check size={16}/> Close today</button>:undefined}/><Card className="revenue-card"><SectionHeading title="Revenue & occupancy" meta="Based on posted charges and stays"/><div className="report-filters"><Field label="From"><input type="date" value={dates.from} onChange={e=>setDates({...dates,from:e.target.value})}/></Field><Field label="To"><input type="date" value={dates.to} onChange={e=>setDates({...dates, to:e.target.value})}/></Field><button className="primary-button" onClick={run} disabled={busy}>{busy?'Loading…':'Run report'}</button></div>{revenue&&<><div className="report-metrics"><Metric label="Room revenue" value={money(revenue.roomRevenue)}/><Metric label="Extras & adjustments" value={money(revenue.otherRevenue)}/><Metric label="Payments received" value={money(revenue.payments)}/><Metric label="Occupied room nights" value={revenue.occupiedNights}/><Metric label="Occupancy" value={`${revenue.occupancyPercent}%`}/></div><div className="payment-method-cards"><Metric label="Cash received" value={money(revenue.paymentBreakdown?.CASH)}/><Metric label="Coopay Ebirr" value={money(revenue.paymentBreakdown?.COOPAY_EBIRR)}/><Metric label="Ebirr Kaafi" value={money(revenue.paymentBreakdown?.EBIRR_KAAFI)}/><Metric label="CBE Bank" value={money(revenue.paymentBreakdown?.CBE_BANK)}/><Metric label="Other" value={money(revenue.paymentBreakdown?.OTHER)}/></div></>}</Card>{canSeeFinancials&&<MonthlyFinancialReport/>} {canSeeInsights&&(loading?<Loading/>:insights&&<><div className="report-columns"><GuestRank title="Top guests · stays" items={insights.topByStays} value="totalStays" unit="stays"/><GuestRank title="Top guests · nights" items={insights.topByNights} value="totalNights" unit="nights"/><GuestRank title="Top guests · revenue" items={insights.topByRevenue} value="totalSpent" unit="spent"/></div><Card className="repeat-card"><SectionHeading title="Most recent repeat guests" meta={`${insights.repeatGuests.length} guests with 2+ stays`}/>{insights.recentRepeatGuests.length?<div className="table-wrap"><table><thead><tr><th>Guest</th><th>Stays</th><th>Nights</th><th>Total spent</th><th>Last stay</th></tr></thead><tbody>{insights.recentRepeatGuests.map((g:any)=><tr key={g.id}><td><strong>{g.name}</strong><small>{g.phone??''}</small></td><td>{g.totalStays}</td><td>{g.totalNights}</td><td>{money(g.totalSpent)}</td><td>{dateLabel(g.lastStayDate)}</td></tr>)}</tbody></table></div>:<Empty title="No repeat stays yet" copy="Guests returning for a second stay will be listed here."/>}</Card></>)}</>;}
-
-const expenseCategories = ['UTILITIES','SUPPLIES','MAINTENANCE','FOOD','TRANSPORT','SALARIES','TAXES','OTHER'];
-const expenseCategoryLabel = (category:string) => category.charAt(0)+category.slice(1).toLowerCase().replaceAll('_',' ');
-const paymentMethodOptions = ['CASH','COOPAY_EBIRR','EBIRR_KAAFI','CBE_BANK','OTHER','MOBILE_MONEY','CARD','BANK_TRANSFER'];
-
-function ExpensesPage({flash,canManage}:{flash:(s:string)=>void;canManage:boolean}) {
-  const [range,setRange]=useState({from:`${today().slice(0,7)}-01`,to:today()});
-  const path=`/expenses?from=${range.from}&to=${range.to}`;
-  const {data:expenses,loading,error,reload}=useLoad<Expense[]>(path,[range.from,range.to]);
-  const [editing,setEditing]=useState<Expense|null|false>(false);
-  const [voiding,setVoiding]=useState<Expense|null>(null);
-  const activeExpenses=expenses?.filter(e=>!e.voidedAt)??[];
-  const total=activeExpenses.reduce((sum,e)=>sum+Number(e.amount),0);
-  async function save(values:Record<string,unknown>){try{if(editing)await patch(`/expenses/${editing.id}`,values);else await post('/expenses',values);setEditing(false);flash(editing?'Expense updated':'Expense recorded');reload();}catch(e){flash(e instanceof Error?e.message:'Could not save expense');throw e;}}
-  async function voidExpense(expense:Expense,reason:string){try{await post(`/expenses/${expense.id}/void`,{reason});setVoiding(null);flash('Expense voided');reload();}catch(e){flash(e instanceof Error?e.message:'Could not void expense');throw e;}}
-  return <><PageTitle eyebrow="FINANCES" title="Expenses" subtitle="Record and review hotel expenses." action={<button className="primary-button" onClick={()=>setEditing(null)}><Plus size={16}/> Record expense</button>}/><Card className="expense-summary-card"><div className="expense-range"><Field label="From"><input type="date" value={range.from} onChange={e=>setRange({...range,from:e.target.value})}/></Field><Field label="To"><input type="date" value={range.to} onChange={e=>setRange({...range,to:e.target.value})}/></Field></div><div className="report-metrics"><Metric label="Expenses in period" value={money(total)}/><Metric label="Active expense records" value={activeExpenses.length}/></div></Card><Card className="expense-list-card"><SectionHeading title="Expense records" meta="Voided records remain visible and are excluded from totals"/>{loading?<Loading/>:!expenses?<ErrorPanel message={error}/>:expenses.length?<div className="table-wrap"><table><thead><tr><th>Date</th><th>Category</th><th>Description</th><th>Paid to</th><th>Payment method</th><th>Amount</th><th>Status</th>{canManage&&<th>Actions</th>}</tr></thead><tbody>{expenses.map(expense=><tr key={expense.id} className={expense.voidedAt?'expense-voided':''}><td>{dateLabel(expense.expenseDate,{year:'numeric',month:'short',day:'numeric'})}</td><td>{expenseCategoryLabel(expense.category)}</td><td><strong>{expense.description}</strong>{expense.reference&&<small>Ref. {expense.reference}</small>}{expense.voidReason&&<small>Void reason: {expense.voidReason}</small>}</td><td>{expense.payee||'—'}</td><td>{statusLabels[expense.paymentMethod]??expense.paymentMethod.replaceAll('_',' ')}</td><td>{money(expense.amount)}</td><td>{expense.voidedAt?<span className="badge badge-cancelled">Voided</span>:<span className="badge badge-done">Recorded</span>}</td>{canManage&&<td>{!expense.voidedAt&&<div className="expense-actions"><button className="small-button" onClick={()=>setEditing(expense)}>Edit</button><button className="small-button danger-text-button" onClick={()=>setVoiding(expense)}>Void</button></div>}</td>}</tr>)}</tbody></table></div>:<Empty title="No expenses for these dates" copy="Record an expense or choose a wider date range."/>}</Card>{editing!==false&&<ExpenseModal expense={editing||undefined} onClose={()=>setEditing(false)} onSave={save}/>} {voiding&&canManage&&<VoidExpenseModal expense={voiding} onClose={()=>setVoiding(null)} onVoid={voidExpense}/>}</>;
-}
-
-function ExpenseModal({expense,onClose,onSave}:{expense?:Expense;onClose:()=>void;onSave:(values:Record<string,unknown>)=>Promise<void>}) {
-  const [category,setCategory]=useState(expense?.category??'UTILITIES'),[description,setDescription]=useState(expense?.description??''),[payee,setPayee]=useState(expense?.payee??''),[amount,setAmount]=useState(expense?String(expense.amount):''),[method,setMethod]=useState(expense?.paymentMethod??'CASH'),[reference,setReference]=useState(expense?.reference??''),[notes,setNotes]=useState(expense?.notes??''),[expenseDate,setExpenseDate]=useState(expense?.expenseDate.slice(0,10)??today()),[busy,setBusy]=useState(false),[error,setError]=useState('');
-  async function submit(e:FormEvent){e.preventDefault();setBusy(true);setError('');try{await onSave({category,description:description.trim(),payee:payee.trim()||null,amount:Number(amount),paymentMethod:method,reference:reference.trim()||null,notes:notes.trim()||null,expenseDate});onClose();}catch(e){setError(e instanceof Error?e.message:'Could not save expense');setBusy(false);}}
-  return <Modal title={expense?'Edit expense':'Record an expense'} subtitle="Enter the amount paid and the date it was paid." onClose={onClose}><form className="modal-form" onSubmit={submit}><div className="form-grid"><Field label="Date paid"><input type="date" required value={expenseDate} onChange={e=>setExpenseDate(e.target.value)}/></Field><Field label="Category"><select value={category} onChange={e=>setCategory(e.target.value)}>{expenseCategories.map(c=><option key={c} value={c}>{expenseCategoryLabel(c)}</option>)}</select></Field><Field label="Description"><input required maxLength={300} placeholder="e.g. Electricity bill" value={description} onChange={e=>setDescription(e.target.value)}/></Field><Field label="Amount"><input type="number" min="0.01" step="0.01" required value={amount} onChange={e=>setAmount(e.target.value)}/></Field><Field label="Payment method"><select value={method} onChange={e=>setMethod(e.target.value)}>{paymentMethodOptions.map(m=><option key={m} value={m}>{statusLabels[m]??m.replaceAll('_',' ')}</option>)}</select></Field><Field label="Paid to (optional)"><input maxLength={120} value={payee} onChange={e=>setPayee(e.target.value)}/></Field><Field label="Reference (optional)"><input maxLength={120} value={reference} onChange={e=>setReference(e.target.value)}/></Field><Field label="Notes (optional)" className="wide-field"><textarea rows={3} maxLength={1000} value={notes} onChange={e=>setNotes(e.target.value)}/></Field></div>{error&&<div className="form-error">{error}</div>}<div className="modal-actions"><button type="button" className="secondary-button" onClick={onClose} disabled={busy}>Cancel</button><button className="primary-button" disabled={busy}><Check size={15}/>{busy?'Saving…':expense?'Save changes':'Record expense'}</button></div></form></Modal>;
-}
-
-function VoidExpenseModal({expense,onClose,onVoid}:{expense:Expense;onClose:()=>void;onVoid:(expense:Expense,reason:string)=>Promise<void>}){const [reason,setReason]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState('');async function submit(e:FormEvent){e.preventDefault();setBusy(true);setError('');try{await onVoid(expense,reason.trim());}catch(e){setError(e instanceof Error?e.message:'Could not void expense');setBusy(false);}}return <Modal title="Void expense" subtitle={`${expenseCategoryLabel(expense.category)} · ${money(expense.amount)}`} onClose={onClose}><form className="modal-form" onSubmit={submit}><div className="card-notice warning"><strong>This expense will be excluded from reports.</strong>The entry remains in the audit history.</div><Field label="Reason for voiding"><textarea rows={3} minLength={3} maxLength={500} required value={reason} onChange={e=>setReason(e.target.value)}/></Field>{error&&<div className="form-error">{error}</div>}<div className="modal-actions"><button type="button" className="secondary-button" onClick={onClose} disabled={busy}>Cancel</button><button className="primary-button danger-button" disabled={busy}><Trash2 size={15}/>{busy?'Voiding…':'Confirm void'}</button></div></form></Modal>;}
-
-function MonthlyFinancialReport() {
-  const [month,setMonth]=useState(today().slice(0,7));const [showAllDaily,setShowAllDaily]=useState(false);
-  const from=`${month}-01`, to=new Date(Date.UTC(Number(month.slice(0,4)),Number(month.slice(5,7)),0)).toISOString().slice(0,10);
-  const {data,loading,error}=useLoad<any>(`/reports/financial-summary?from=${from}&to=${to}`,[month]);
-  const {data:expenseRecords,loading:expensesLoading}=useLoad<Expense[]>(`/expenses?from=${from}&to=${to}`,[month]);
-  const monthLabel=new Date(`${month}-15T12:00:00`).toLocaleDateString(undefined,{month:'long',year:'numeric'});const dailyRows=(data?.daily??[]).filter((row:any)=>row.date<=today());const visibleDailyRows=showAllDaily?[...dailyRows].reverse():[...dailyRows].reverse().slice(0,7);useEffect(()=>setShowAllDaily(false),[month]);
-  return <Card className="monthly-financial-card"><SectionHeading title="Monthly income and expenses" meta="Net cash is payments received minus expenses paid" action={<div className="month-picker"><button className="icon-button" aria-label="Previous month" onClick={()=>setMonth(shiftMonth(month,-1))}><ChevronLeft size={17}/></button><input type="month" value={month} onChange={e=>setMonth(e.target.value)}/><button className="icon-button" aria-label="Next month" onClick={()=>setMonth(shiftMonth(month,1))}><ChevronRight size={17}/></button></div>}/>{loading?<Loading/>:!data?<ErrorPanel message={error}/>:<><div className="financial-month-label">{monthLabel}</div><div className="report-metrics financial-summary-metrics"><Metric label="Payments received" value={money(data.paymentsTotal)}/><Metric label="Expenses paid" value={money(data.expensesTotal)}/><Metric label="Net cash" value={money(data.netCash)}/><Metric label="Room charges posted" value={money(data.roomRevenue)}/><Metric label="Other charges posted" value={money(data.otherRevenue)}/></div><div className="financial-breakdowns"><div><SectionHeading title="Received by payment method"/>{paymentMethodOptions.map(method=><div className="financial-breakdown-row" key={method}><span>{statusLabels[method]??method}</span><strong>{money(data.paymentBreakdown?.[method])}</strong></div>)}</div><div><SectionHeading title="Expenses by category"/>{expenseCategories.map(category=><div className="financial-breakdown-row" key={category}><span>{expenseCategoryLabel(category)}</span><strong>{money(data.expensesByCategory?.[category])}</strong></div>)}</div></div><SectionHeading title="Daily summary" meta={`${dailyRows.length} days in ${monthLabel}`}/><div className="table-wrap"><table><thead><tr><th>Date</th><th>Payments received</th><th>Expenses</th><th>Net cash</th><th>Room charges</th><th>Other charges</th></tr></thead><tbody>{visibleDailyRows.map((row:any)=><tr key={row.date}><td>{dateLabel(row.date,{weekday:'short',month:'short',day:'numeric'})}</td><td>{money(row.payments)}</td><td>{money(row.expenses)}</td><td className={row.netCash<0?'negative-amount':'positive-amount'}>{money(row.netCash)}</td><td>{money(row.roomCharges)}</td><td>{money(row.otherCharges)}</td></tr>)}</tbody></table></div>{dailyRows.length>7&&<div className="table-expand"><button className="text-button" onClick={()=>setShowAllDaily(value=>!value)}>{showAllDaily?'Show less':'Read more ('+(dailyRows.length-7)+' days)'}</button></div>}<SectionHeading title="Expense details" meta={`${expenseRecords?.filter(expense=>!expense.voidedAt).length??0} recorded expenses`}/>{expensesLoading?<Loading/>:expenseRecords?.filter(expense=>!expense.voidedAt).length?<div className="table-wrap"><table><thead><tr><th>Date</th><th>Category</th><th>Description</th><th>Paid to</th><th>Payment method</th><th>Amount</th></tr></thead><tbody>{expenseRecords.filter(expense=>!expense.voidedAt).map(expense=><tr key={expense.id}><td>{dateLabel(expense.expenseDate,{month:'short',day:'numeric'})}</td><td>{expenseCategoryLabel(expense.category)}</td><td>{expense.description}</td><td>{expense.payee||'—'}</td><td>{statusLabels[expense.paymentMethod]??expense.paymentMethod}</td><td>{money(expense.amount)}</td></tr>)}</tbody></table></div>:<Empty title="No recorded expenses this month" copy="The monthly expense total is zero."/>}</>}</Card>;
-}
-function GuestRank({title,items,value,unit}:{title:string;items:any[];value:string;unit:string}){return <Card className="rank-card"><SectionHeading title={title}/>{items.length?items.slice(0,5).map((g,i)=><div className="rank-row" key={g.id}><span className={`rank-number ${i===0?'rank-first':''}`}>{String(i+1).padStart(2,'0')}</span><div><strong>{g.name}</strong><small>{g.totalStays} stays · last {dateLabel(g.lastStayDate)}</small></div><b>{value==='totalSpent'?money(g[value]):g[value]}<small>{unit==='spent'?'total':unit}</small></b></div>):<Empty title="No stays recorded" copy="Guest rankings will appear once stays are completed."/>}</Card>;}
-
-function TeamPage({flash,currentUserId}:{flash:(s:string)=>void;currentUserId:string}) {
-  const {data:users,loading,error,reload}=useLoad<any[]>('/users');
-  const [deletingUser,setDeletingUser]=useState<any|null>(null);
-  const [resettingUser,setResettingUser]=useState<any|null>(null);
-  async function setActive(user:any){try{await patch(`/users/${user.id}`,{active:!user.active});flash(`${user.name} ${user.active?'deactivated':'activated'}`);reload();}catch(e){flash(e instanceof Error?e.message:'Could not update account');}}
-  return <><PageTitle eyebrow="PROPERTY SETTINGS" title="Team access" subtitle="Activate or deactivate reception accounts and remove accounts that are no longer needed." action={<button className="primary-button" onClick={()=>document.getElementById('invite-staff')?.scrollIntoView({behavior:'smooth'})}><Plus size={16}/> Add staff member</button>}/><Card className="table-card"><SectionHeading title="Staff accounts" meta={`${users?.length??0} accounts`}/>{loading?<Loading/>:!users?<ErrorPanel message={error}/>:<div className="table-wrap"><table><thead><tr><th>Team member</th><th>Email</th><th>Role</th><th>Status</th><th>Account actions</th></tr></thead><tbody>{users.map(u=><tr key={u.id}><td><div className="staff-name"><span className="avatar avatar-guest">{u.name.slice(0,1)}</span><strong>{u.name}</strong></div></td><td>{u.email}</td><td><Badge value={u.role}/>{u.role==='HOUSEKEEPING'&&<small className="account-note">Worker account · app sign-in disabled</small>}</td><td><span className={`account-status ${u.active?'is-active':'is-inactive'}`}>{u.active?'Active':'Inactive'}</span></td><td><div className="account-actions">{u.id!==currentUserId&&<button className="small-button" onClick={()=>setResettingUser(u)}>Reset password</button>}{u.role==='ADMIN'?<small>Administrator account</small>:<><button className="secondary-button" onClick={()=>setActive(u)}>{u.active?'Deactivate':'Activate'}</button>{u.id!==currentUserId&&<button className="small-button danger-button" onClick={()=>setDeletingUser(u)}><Trash2 size={14}/> Delete</button>}</>}</div></td></tr>)}</tbody></table></div>}</Card><AdminPasswordSettings flash={flash}/><AdminRecoverySettings flash={flash}/><Card id="invite-staff"><SectionHeading title="Add staff member" meta="Create staff access for reception or management"/><form className="form-grid" onSubmit={async e=>{e.preventDefault();const f=new FormData(e.currentTarget);try{await post('/users',{name:f.get('name'),email:f.get('email'),password:f.get('password'),role:f.get('role')});(e.target as HTMLFormElement).reset();flash('Staff account created');reload();}catch(err){flash(err instanceof Error?err.message:'Unable to create staff account');}}}><Field label="Full name"><input name="name" required/></Field><Field label="Email"><input name="email" type="email" required/></Field><Field label="Temporary password (10+ characters)"><input name="password" type="password" minLength={10} required/></Field><Field label="Role"><select name="role"><option value="RECEPTIONIST">Receptionist</option><option value="MANAGER">Manager</option><option value="ADMIN">Admin</option></select></Field><div className="form-actions"><button className="primary-button"><Plus size={16}/> Create account</button></div></form></Card>{deletingUser&&<DeleteUserModal user={deletingUser} onClose={()=>setDeletingUser(null)} onDeleted={()=>{setDeletingUser(null);reload();}}/>}{resettingUser&&<ResetStaffPasswordModal user={resettingUser} onClose={()=>setResettingUser(null)} onSaved={()=>{setResettingUser(null);reload();flash(`Password updated for ${resettingUser.name}`);}}/>}</>;
-}
-function AdminPasswordSettings({flash}:{flash:(message:string)=>void}){
-  const [busy,setBusy]=useState(false),[error,setError]=useState('');
-  async function save(e:FormEvent<HTMLFormElement>){e.preventDefault();setError('');const form=e.currentTarget;const values=new FormData(form);const currentPassword=String(values.get('currentPassword')??'');const newPassword=String(values.get('newPassword')??'');if(newPassword!==String(values.get('confirmPassword')??'')){setError('The new passwords do not match.');return;}if(currentPassword===newPassword){setError('Choose a password different from your current password.');return;}setBusy(true);try{const result=await post<{message:string}>('/auth/change-password',{currentPassword,newPassword});form.reset();flash(result.message);}catch(err){setError(err instanceof Error?err.message:'Could not change password');}finally{setBusy(false);}}
-  return <Card><SectionHeading title="Change my password" meta="Change your administrator sign-in password while you are signed in."/><form className="form-grid" onSubmit={save}><Field label="Current password"><input name="currentPassword" type="password" autoComplete="current-password" required/></Field><Field label="New password (10+ characters)"><input name="newPassword" type="password" minLength={10} maxLength={200} autoComplete="new-password" required/></Field><Field label="Confirm new password"><input name="confirmPassword" type="password" minLength={10} maxLength={200} autoComplete="new-password" required/></Field>{error&&<div className="form-error">{error}</div>}<div className="form-actions"><button className="primary-button" disabled={busy}>{busy?'Changing…':'Change password'}</button></div></form></Card>;
-}
-function ResetStaffPasswordModal({user,onClose,onSaved}:{user:{id:string;name:string;email:string};onClose:()=>void;onSaved:()=>void}){
-  const [busy,setBusy]=useState(false),[error,setError]=useState('');
-  async function submit(e:FormEvent<HTMLFormElement>){e.preventDefault();setError('');const values=new FormData(e.currentTarget);const password=String(values.get('password')??'');if(password!==String(values.get('confirmPassword')??'')){setError('The passwords do not match.');return;}setBusy(true);try{await patch(`/users/${user.id}`,{password});onSaved();}catch(err){setError(err instanceof Error?err.message:'Could not reset password');setBusy(false);}}
-  return <Modal title="Reset staff password" subtitle={`${user.name} · ${user.email}`} onClose={onClose}><form className="modal-form" onSubmit={submit}><Field label="New password (10+ characters)"><input name="password" type="password" minLength={10} maxLength={200} autoComplete="new-password" required autoFocus/></Field><Field label="Confirm new password"><input name="confirmPassword" type="password" minLength={10} maxLength={200} autoComplete="new-password" required/></Field><p className="account-note">Tell the staff member their new password privately.</p>{error&&<div className="form-error">{error}</div>}<div className="modal-actions"><button type="button" className="secondary-button" onClick={onClose} disabled={busy}>Cancel</button><button className="primary-button" disabled={busy}>{busy?'Saving…':'Reset password'}</button></div></form></Modal>;
-}
-function AdminRecoverySettings({flash}:{flash:(message:string)=>void}){
-  const [busy,setBusy]=useState(false),[error,setError]=useState('');
-  async function save(e:FormEvent<HTMLFormElement>){e.preventDefault();setError('');const form=e.currentTarget;const values=new FormData(form);const recoveryPhrase=String(values.get('recoveryPhrase')??'');if(recoveryPhrase!==String(values.get('confirmPhrase')??'')){setError('The recovery passphrases do not match.');return;}setBusy(true);try{const result=await post<{message:string}>('/auth/admin/recovery-phrase',{currentPassword:values.get('currentPassword'),recoveryPhrase});form.reset();flash(result.message);}catch(err){setError(err instanceof Error?err.message:'Could not save recovery passphrase');}finally{setBusy(false);}}
-  return <Card><SectionHeading title="Administrator password recovery" meta="Set this once while signed in; use it if you forget your password."/><form className="form-grid" onSubmit={save}><Field label="Your current password"><input name="currentPassword" type="password" autoComplete="current-password" required/></Field><Field label="Recovery passphrase (12+ characters)"><input name="recoveryPhrase" type="password" minLength={12} maxLength={200} autoComplete="new-password" required/></Field><Field label="Confirm recovery passphrase"><input name="confirmPhrase" type="password" minLength={12} maxLength={200} autoComplete="new-password" required/></Field>{error&&<div className="form-error">{error}</div>}<div className="form-actions"><button className="primary-button" disabled={busy}>{busy?'Saving…':'Save recovery passphrase'}</button></div><small className="account-note">Keep it somewhere private. Receptionists cannot use this recovery option.</small></form></Card>;
-}
-function DeleteUserModal({user,onClose,onDeleted}:{user:any;onClose:()=>void;onDeleted:()=>void}){
-  const [busy,setBusy]=useState(false);
-  const [error,setError]=useState('');
-  async function submit(e:FormEvent){
+  const [recovering, setRecovering] = useState(false),
+    [recoveryPhrase, setRecoveryPhrase] = useState(""),
+    [newPassword, setNewPassword] = useState("");
+  async function submit(e: FormEvent) {
     e.preventDefault();
     setBusy(true);
-    setError('');
-    try{
-      await api(`/users/${user.id}`,{method:'DELETE'});
-      window.dispatchEvent(new CustomEvent('hms:toast',{detail:`${user.name}'s account deleted`}));
-      onDeleted();
-    }catch(err){
-      setError(err instanceof Error?err.message:'Could not delete staff account');
+    setError("");
+    try {
+      const result = await api<{ token: string; user: User }>("/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ email, password }),
+      });
+      localStorage.setItem("hms_token", result.token);
+      localStorage.setItem("hms_user", JSON.stringify(result.user));
+      onLogin(result.user);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unable to sign in");
+    } finally {
       setBusy(false);
     }
   }
-  return <Modal title="Delete staff account" subtitle={user.name} onClose={onClose}><form className="modal-form" onSubmit={submit}><div className="card-notice danger"><strong>Permanent account removal</strong>Are you sure you want to delete <strong>{user.name}</strong> ({user.email})? This staff account will lose access immediately. This action cannot be undone.</div>{error&&<div className="form-error">{error}</div>}<div className="modal-actions"><button type="button" className="secondary-button" onClick={onClose} disabled={busy}>Cancel</button><button type="submit" className="primary-button danger-button" disabled={busy}><Trash2 size={15}/>{busy?'Deleting…':'Delete account'}</button></div></form></Modal>;
-}
-function RoomMovePanel({flash,refresh}:{flash:(s:string)=>void;refresh:()=>void}){const {data:stays}=useLoad<Stay[]>('/stays/in-house');const {data:rooms}=useLoad<Room[]>('/rooms');const [stayId,setStayId]=useState(''),[roomId,setRoomId]=useState('');const selected=stays?.find(x=>x.id===stayId);const eligible=rooms?.filter(r=>r.id!==selected?.room.id&&!['OCCUPIED','DIRTY','OUT_OF_ORDER'].includes(r.status))??[];return <Card className="move-room-card"><SectionHeading title="Move a guest to another room" meta="The previous room will be marked Dirty; higher room rates are charged for remaining nights, while the contracted rate stays for lower-rate rooms."/><div className="form-grid"><Field label="Current guest"><select value={stayId} onChange={e=>{setStayId(e.target.value);setRoomId('');}}><option value="">Choose an in-house guest</option>{stays?.map(s=><option key={s.id} value={s.id}>{guestName(s.guest)} · Room {s.room.number}</option>)}</select></Field><Field label="Destination room"><select value={roomId} onChange={e=>setRoomId(e.target.value)}><option value="">Choose an available room</option>{eligible.map(r=><option value={r.id} key={r.id}>{r.number} · {r.type}</option>)}</select></Field><div className="form-actions"><button className="primary-button" disabled={!stayId||!roomId} onClick={async()=>{try{await post(`/stays/${stayId}/move-room`,{roomId,reason:'Guest room move'});flash('Guest moved · previous room marked Dirty');setStayId('');setRoomId('');refresh();}catch(e){flash(e instanceof Error?e.message:'Could not move guest');}}}><DoorOpen size={16}/> Move guest</button></div></div></Card>;}
-function DailyAuditHistory(){const {data,loading,error,reload}=useLoad<any[]>('/reports/daily-audits');const [expanded,setExpanded]=useState(false);const visible=data?(expanded?data:data.slice(0,7)):[];return <Card className="activity-card"><SectionHeading title="Daily close snapshots" meta="Saved occupancy, revenue, expenses and payment reconciliation" action={<button className="small-button" onClick={reload}>Refresh</button>}/>{loading?<Loading/>:!data?<ErrorPanel message={error}/>:data.length?<><div className="table-wrap"><table><thead><tr><th>Business date</th><th>Rooms occupied</th><th>Room revenue</th><th>ADR</th><th>RevPAR</th><th>Payments received</th><th>Expenses</th><th>Net cash</th><th>Cash</th><th>Coopay Ebirr</th><th>Ebirr Kaafi</th><th>CBE Bank</th><th>Other</th><th>Outstanding</th></tr></thead><tbody>{visible.map((audit:any)=><tr key={audit.id}><td>{dateLabel(audit.businessDate,{year:'numeric',month:'short',day:'numeric'})}</td><td>{audit.occupiedRooms}/{audit.openingRooms} · {audit.openingRooms?Math.round(audit.occupiedRooms/audit.openingRooms*100):0}%</td><td>{money(audit.roomRevenue)}</td><td>{money(audit.averageDailyRate)}</td><td>{money(audit.revenuePerAvailableRoom)}</td><td>{money(audit.paymentsTotal)}</td><td>{money(audit.expensesTotal)}</td><td className={Number(audit.netCash)<0?'negative-amount':'positive-amount'}>{money(audit.netCash)}</td><td>{money(audit.cashPayments)}</td><td>{money(audit.coopayEbirrPayments)}</td><td>{money(audit.ebirrKaafiPayments)}</td><td>{money(audit.cbeBankPayments)}</td><td>{money(audit.otherPayments)}</td><td>{money(audit.outstandingTotal)}</td></tr>)}</tbody></table></div>{data.length>7&&<div className="table-expand"><button className="text-button" onClick={()=>setExpanded(value=>!value)}>{expanded?'Show less':'Read more ('+(data.length-7)+' days)'}</button></div>}</>:<Empty title="No daily closes saved" copy="A manager or administrator can save the daily close from this page."/>}</Card>;}
-function ActivityLog(){
-  const {data,loading,error}=useLoad<any[]>('/reports/audit-log');
-  const [expanded,setExpanded]=useState(false);
-  const [staffFilter,setStaffFilter]=useState('ALL');
-  const staffOptions=Array.from(new Map<string,string>((data??[]).map(item=>[item.user?.email??'__SYSTEM__',item.user?.name??'System'])).entries()).sort((a,b)=>a[1].localeCompare(b[1]));
-  const filtered=(data??[]).filter(item=>staffFilter==='ALL'||(staffFilter==='__SYSTEM__'?!item.user?.email:item.user?.email===staffFilter));
-  const visible=expanded?filtered:filtered.slice(0,7);
-  return <Card className="activity-card">
-    <SectionHeading title="Recent activity" meta="Newest staff actions first"/>
-    {data&&data.length>0&&<div className="activity-filter-row">
-      <Field label="Filter by staff member"><select aria-label="Filter activity by staff member" value={staffFilter} onChange={e=>{setStaffFilter(e.target.value);setExpanded(false);}}>
-        <option value="ALL">All staff</option>
-        {staffOptions.map(([email,name])=><option key={email} value={email}>{email==='__SYSTEM__'?name:name+' · '+email}</option>)}
-      </select></Field>
-      <span className="activity-filter-count">{filtered.length} {filtered.length===1?'activity':'activities'}</span>
-    </div>}
-    {loading?<Loading/>:!data?<ErrorPanel message={error}/>:filtered.length?<><div className="table-wrap"><table><thead><tr><th>When</th><th>Staff member</th><th>Action</th><th>Record</th></tr></thead><tbody>
-      {visible.map((item:any)=><tr key={item.id}><td>{new Date(item.createdAt).toLocaleString()}</td><td>{item.user?.name??'System'}</td><td>{item.action.replaceAll('.',' ').replaceAll('_',' ')}</td><td>{item.entityType}{item.entityId?' · '+item.entityId.slice(-7):''}</td></tr>)}
-    </tbody></table></div>{filtered.length>7&&<div className="table-expand"><button className="text-button" onClick={()=>setExpanded(value=>!value)}>{expanded?'Show less':'Read more ('+(filtered.length-7)+' entries)'}</button></div>}</>:<Empty title={data.length?'No activity for this staff member':'No activity recorded yet'} copy={data.length?'Choose another staff member or select All staff.':'Important room, reservation, stay and billing changes will appear here.'}/>}
-  </Card>;
+  async function resetPassword(e: FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      const result = await api<{ message: string }>(
+        "/auth/admin/forgot-password",
+        {
+          method: "POST",
+          body: JSON.stringify({ email, recoveryPhrase, newPassword }),
+        },
+      );
+      setRecovering(false);
+      setPassword("");
+      setRecoveryPhrase("");
+      setNewPassword("");
+      setError(result.message);
+    } catch (e) {
+      setError(
+        e instanceof Error
+          ? e.message
+          : "Unable to reset administrator password",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div className="login-wrap">
+      <div className="login-art">
+        <div className="login-brand">
+          <div className="brand-mark">
+            <Building2 size={18} />
+          </div>{" "}
+          Staywell
+        </div>
+        <div className="art-copy">
+          <span className="eyebrow">A CALM START TO EVERY STAY</span>
+          <h1>
+            Good hospitality
+            <br />
+            starts right here.
+          </h1>
+          <p>Your hotel's daily operations, thoughtfully organized.</p>
+        </div>
+        <div className="art-bottom">
+          <span>ROOMS · GUESTS · OPERATIONS</span>
+          <span>12 rooms, one clear view.</span>
+        </div>
+        <div className="art-shape shape-one" />
+        <div className="art-shape shape-two" />
+      </div>
+      <div className="login-form-side">
+        <form
+          className="login-form"
+          onSubmit={recovering ? resetPassword : submit}
+        >
+          <div className="login-mobile-brand">
+            <div className="brand-mark">
+              <Building2 size={18} />
+            </div>{" "}
+            Staywell
+          </div>
+          <span className="eyebrow">HOTEL TEAM</span>
+          <h2>
+            {recovering ? "Reset administrator password" : "Welcome back"}
+          </h2>
+          <p>
+            {recovering
+              ? "Use the recovery passphrase you set in Team access."
+              : "Sign in to continue to the front desk."}
+          </p>
+          <label>
+            Email address
+            <input
+              type="email"
+              autoComplete="username"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </label>
+          {recovering ? (
+            <>
+              <label>
+                Admin recovery passphrase
+                <input
+                  type="password"
+                  autoComplete="off"
+                  required
+                  value={recoveryPhrase}
+                  onChange={(e) => setRecoveryPhrase(e.target.value)}
+                />
+              </label>
+              <label>
+                New password (10+ characters)
+                <input
+                  type="password"
+                  minLength={10}
+                  autoComplete="new-password"
+                  required
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                />
+              </label>
+            </>
+          ) : (
+            <label>
+              Password
+              <span className="login-password-wrap">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="current-password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+                <button
+                  type="button"
+                  className="login-password-toggle"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  aria-pressed={showPassword}
+                  onClick={() => setShowPassword((visible) => !visible)}
+                >
+                  {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+                </button>
+              </span>
+            </label>
+          )}
+          {error && (
+            <div
+              className={
+                error.includes("reset") ? "form-success" : "form-error"
+              }
+            >
+              {error}
+            </div>
+          )}
+          <button className="primary-button full" disabled={busy}>
+            {busy ? "Please wait…" : recovering ? "Reset password" : "Sign in"}
+            <ChevronRight size={17} />
+          </button>
+          {!recovering ? (
+            <button
+              type="button"
+              className="text-button recovery-link"
+              onClick={() => {
+                setError("");
+                setRecovering(true);
+              }}
+            >
+              Forgot administrator password?
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="text-button recovery-link"
+              onClick={() => {
+                setError("");
+                setRecovering(false);
+              }}
+            >
+              Back to sign in
+            </button>
+          )}
+          <small className="login-foot">
+            Receptionist accounts must contact the hotel administrator for
+            password help.
+          </small>
+        </form>
+      </div>
+    </div>
+  );
 }
 
-function useLoad<T>(path:string|null,deps:unknown[]=[]){const [data,setData]=useState<T|null>(null),[loading,setLoading]=useState(!!path),[error,setError]=useState(''),[tick,setTick]=useState(0);const reload=useCallback(()=>setTick(x=>x+1),[]);useEffect(()=>{if(!path){setLoading(false);setData(null);return;}let live=true;setLoading(true);api<T>(path).then(x=>{if(live){setData(x);setError('');}}).catch(e=>{if(live)setError(e instanceof Error?e.message:'Unable to load data');}).finally(()=>{if(live)setLoading(false);});return()=>{live=false;};},[path,tick,...deps]);return {data,loading,error,reload};}
-function ErrorPanel({message}:{message:string}){return <Card><Empty title="Could not load this view" copy={message||'Please check your connection and try again.'}/></Card>;}
-function shiftDay(value:string,amount:number){const d=new Date(`${value.slice(0,10)}T12:00:00`);d.setDate(d.getDate()+amount);return d.toLocaleDateString('en-CA');}
-function shiftMonth(value:string,amount:number){const d=new Date(`${value}-15T12:00:00`);d.setMonth(d.getMonth()+amount);return d.toLocaleDateString('en-CA').slice(0,7);}
-function escapeHtml(value:unknown){return String(value??'').replace(/[&<>"']/g,character=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character]??character));}
+function PageTitle({
+  eyebrow,
+  title,
+  subtitle,
+  action,
+}: {
+  eyebrow: string;
+  title: string;
+  subtitle?: string;
+  action?: ReactNode;
+}) {
+  return (
+    <div className="page-title-row">
+      <div>
+        <div className="eyebrow">{eyebrow}</div>
+        <h1>{title}</h1>
+        {subtitle && <p>{subtitle}</p>}
+      </div>
+      {action}
+    </div>
+  );
+}
+function Card({
+  children,
+  className = "",
+  id,
+}: {
+  children: ReactNode;
+  className?: string;
+  id?: string;
+}) {
+  return (
+    <section className={`card ${className}`} id={id}>
+      {children}
+    </section>
+  );
+}
+function SectionHeading({
+  title,
+  meta,
+  action,
+}: {
+  title: string;
+  meta?: string;
+  action?: ReactNode;
+}) {
+  return (
+    <div className="section-heading">
+      <div>
+        <h3>{title}</h3>
+        {meta && <span>{meta}</span>}
+      </div>
+      {action}
+    </div>
+  );
+}
+function Badge({ value }: { value: string }) {
+  const key = value.toLowerCase().replaceAll("_", "-");
+  return (
+    <span className={`badge badge-${key}`}>
+      {statusLabels[value] ?? value.replaceAll("_", " ")}
+    </span>
+  );
+}
+function Empty({ title, copy }: { title: string; copy: string }) {
+  return (
+    <div className="empty-state">
+      <div className="empty-icon">
+        <Sparkles size={19} />
+      </div>
+      <strong>{title}</strong>
+      <span>{copy}</span>
+    </div>
+  );
+}
+function Loading() {
+  return (
+    <div className="loading">
+      <span className="spinner" /> Loading hotel data…
+    </div>
+  );
+}
+function Field({
+  label,
+  children,
+  className = "",
+}: {
+  label: string;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <label className={`field ${className}`}>
+      <span>{label}</span>
+      {children}
+    </label>
+  );
+}
+function Modal({
+  title,
+  subtitle,
+  children,
+  onClose,
+  wide = false,
+}: {
+  title: string;
+  subtitle?: string;
+  children: ReactNode;
+  onClose: () => void;
+  wide?: boolean;
+}) {
+  return (
+    <div
+      className="modal-backdrop"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <section className={`modal ${wide ? "modal-wide" : ""}`}>
+        <div className="modal-head">
+          <div>
+            <h2>{title}</h2>
+            {subtitle && <span>{subtitle}</span>}
+          </div>
+          <button className="icon-button" onClick={onClose}>
+            <X size={18} />
+          </button>
+        </div>
+        {children}
+      </section>
+    </div>
+  );
+}
+
+function Overview({
+  date,
+  setDate,
+  openCheckIn,
+  openFolio,
+}: {
+  date: string;
+  setDate: (d: string) => void;
+  openCheckIn: (r: Reservation) => void;
+  openFolio: (s: Stay) => void;
+}) {
+  const { data, loading, error } = useLoad<Dashboard>(
+    `/reports/dashboard?date=${date}`,
+  );
+  if (loading) return <Loading />;
+  if (!data) return <ErrorPanel message={error} />;
+  const statuses = [
+    "AVAILABLE",
+    "OCCUPIED",
+    "DIRTY",
+    "CLEAN",
+    "INSPECTED",
+    "OUT_OF_ORDER",
+  ];
+  return (
+    <>
+      <PageTitle
+        eyebrow={new Date(`${date}T12:00:00`)
+          .toLocaleDateString(undefined, {
+            weekday: "long",
+            day: "2-digit",
+            month: "long",
+            year: "numeric",
+          })
+          .toUpperCase()}
+        title="Good morning, team"
+        subtitle="Here's what's happening at the hotel today."
+        action={
+          <div className="date-picker">
+            <button
+              className="icon-button"
+              onClick={() => setDate(shiftDay(date, -1))}
+            >
+              <ChevronLeft size={17} />
+            </button>
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+            />
+            <button
+              className="icon-button"
+              onClick={() => setDate(shiftDay(date, 1))}
+            >
+              <ChevronRight size={17} />
+            </button>
+          </div>
+        }
+      />
+      <div className="stats-grid">
+        <StatCard
+          label="Occupancy"
+          value={`${data.occupancy.percent}%`}
+          note={`${data.occupancy.occupied} of ${data.occupancy.total} rooms`}
+          icon={<BedDouble />}
+          tone="green"
+        />
+        <StatCard
+          label="Arrivals"
+          value={data.arrivals.length}
+          note="Expected today"
+          icon={<DoorOpen />}
+          tone="blue"
+        />
+        <StatCard
+          label="Departures"
+          value={data.departures.length}
+          note="Expected today"
+          icon={<LogOut />}
+          tone="peach"
+        />
+        <StatCard
+          label="Payments today"
+          value={money(data.paymentsToday)}
+          note="Across all tenders"
+          icon={<CircleDollarSign />}
+          tone="lilac"
+        />
+      </div>
+      <div className="overview-grid">
+        <Card>
+          <SectionHeading
+            title="Today's arrivals"
+            meta={`${data.arrivals.length} expected`}
+            action={
+              <button className="text-button" onClick={() => {}}>
+                View all <ChevronRight size={15} />
+              </button>
+            }
+          />
+          {data.arrivals.length ? (
+            <div className="arrival-list">
+              {data.arrivals.slice(0, 5).map((r) => (
+                <div className="arrival-row" key={r.id}>
+                  <div className="avatar avatar-guest">
+                    {r.guest.firstName[0]}
+                    {r.guest.lastName[0]}
+                  </div>
+                  <div className="arrival-person">
+                    <strong>{guestName(r.guest)}</strong>
+                    <span>
+                      {r.confirmationCode} ·{" "}
+                      {r.room?.number
+                        ? `Room ${r.room.number}`
+                        : (r.roomType ?? "Room to assign")}
+                    </span>
+                  </div>
+                  <div className="arrival-date">{dateLabel(r.arrivalDate)}</div>
+                  <button
+                    className="small-button"
+                    onClick={() => openCheckIn(r)}
+                  >
+                    Check in
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <Empty
+              title="No arrivals today"
+              copy="The front desk is all caught up."
+            />
+          )}
+        </Card>
+        <Card className="room-overview-card">
+          <SectionHeading
+            title="Room status"
+            meta="Live overview"
+            action={
+              <button
+                className="text-button"
+                onClick={() =>
+                  window.dispatchEvent(
+                    new CustomEvent("hms:navigate", { detail: "Rooms" }),
+                  )
+                }
+              >
+                Room board <ChevronRight size={15} />
+              </button>
+            }
+          />
+          <div className="status-summary">
+            {statuses.map((s) => (
+              <div className="status-summary-row" key={s}>
+                <span className={`status-dot dot-${s.toLowerCase()}`} />
+                <span>{statusLabels[s]}</span>
+                <strong>
+                  {data.rooms.filter((r) => r.status === s).length}
+                </strong>
+              </div>
+            ))}
+          </div>
+          <div className="occupancy-footer">
+            <div>
+              <span>Currently in-house</span>
+              <strong>
+                {data.inHouse} <small>/ {data.occupancy.total} rooms</small>
+              </strong>
+            </div>
+            <div className="progress-track">
+              <span style={{ width: `${data.occupancy.percent}%` }} />
+            </div>
+          </div>
+        </Card>
+        <Card className="stays-card">
+          <SectionHeading
+            title="Guests in-house"
+            meta={`${data.inHouse} active stays`}
+            action={
+              <button
+                className="text-button"
+                onClick={() =>
+                  window.dispatchEvent(
+                    new CustomEvent("hms:navigate", { detail: "In-house" }),
+                  )
+                }
+              >
+                View stays <ChevronRight size={15} />
+              </button>
+            }
+          />
+          <InHouseMini openFolio={openFolio} />
+        </Card>
+        <Card className="quick-card">
+          <div className="quick-heading">
+            <div className="quick-icon">
+              <Sparkles size={17} />
+            </div>
+            <div>
+              <h3>Front desk pulse</h3>
+              <span>A quick look at today's operations</span>
+            </div>
+          </div>
+          <div className="pulse-stat">
+            <span>Rooms in use</span>
+            <strong>
+              {data.inHouse} / {data.occupancy.total}
+            </strong>
+          </div>
+          <div className="pulse-stat">
+            <span>Payments received</span>
+            <strong>{money(data.paymentsToday)}</strong>
+          </div>
+          <div className="pulse-note">
+            <span className="online-dot" /> All hotel services are running
+            normally
+          </div>
+        </Card>
+      </div>
+    </>
+  );
+}
+function StatCard({
+  label,
+  value,
+  note,
+  icon,
+  tone,
+}: {
+  label: string;
+  value: ReactNode;
+  note: string;
+  icon: ReactNode;
+  tone: string;
+}) {
+  return (
+    <div className="stat-card">
+      <div className="stat-top">
+        <span className="stat-label">{label}</span>
+        <div className={`stat-icon icon-${tone}`}>{icon}</div>
+      </div>
+      <strong className="stat-value">{value}</strong>
+      <span className="stat-note">{note}</span>
+    </div>
+  );
+}
+function InHouseMini({ openFolio }: { openFolio: (s: Stay) => void }) {
+  const { data, loading } = useLoad<Stay[]>("/stays/in-house");
+  if (loading) return <Loading />;
+  if (!data?.length)
+    return (
+      <Empty
+        title="No guests checked in"
+        copy="Checked-in guests will appear here."
+      />
+    );
+  return (
+    <div className="mini-stay-list">
+      {data.slice(0, 4).map((s) => (
+        <button className="mini-stay" key={s.id} onClick={() => openFolio(s)}>
+          <span className="avatar avatar-guest">
+            {s.guest.firstName[0]}
+            {s.guest.lastName[0]}
+          </span>
+          <span className="mini-stay-name">
+            <strong>{guestName(s.guest)}</strong>
+            <small>
+              Room {s.room.number} · departs {dateLabel(s.expectedCheckOut)}
+            </small>
+          </span>
+          <ChevronRight size={16} />
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function RoomsPage({
+  flash,
+  onChooseRoom,
+  canManage,
+}: {
+  flash: (s: string) => void;
+  onChooseRoom: (room: Room) => void;
+  canManage: boolean;
+}) {
+  const { data: rooms, loading, error, reload } = useLoad<Room[]>("/rooms");
+  const [filter, setFilter] = useState<
+    "ALL" | "FREE" | "OCCUPIED" | "ATTENTION"
+  >("ALL");
+  const [editing, setEditing] = useState<Room | null>(null);
+  async function change(room: Room, status: string) {
+    try {
+      await patch(`/rooms/${room.id}/status`, { status });
+      flash(
+        `Room ${room.number} marked ${statusLabels[status]?.toLowerCase()}`,
+      );
+      reload();
+    } catch (e) {
+      flash(e instanceof Error ? e.message : "Could not update room");
+    }
+  }
+  async function saveRoom(room: Room, values: Record<string, unknown>) {
+    await patch(`/rooms/${room.id}`, values);
+    setEditing(null);
+    flash(
+      `Room ${room.number} updated. The room type price applies to every ${String(values.type || room.type)} room.`,
+    );
+    reload();
+  }
+  const freeCount =
+    rooms?.filter((r) => ["AVAILABLE", "CLEAN", "INSPECTED"].includes(r.status))
+      .length ?? 0;
+  const occupiedCount =
+    rooms?.filter((r) => r.status === "OCCUPIED").length ?? 0;
+  const visible =
+    rooms?.filter(
+      (r) =>
+        filter === "ALL" ||
+        (filter === "FREE" &&
+          ["AVAILABLE", "CLEAN", "INSPECTED"].includes(r.status)) ||
+        (filter === "OCCUPIED" && r.status === "OCCUPIED") ||
+        (filter === "ATTENTION" &&
+          ["DIRTY", "OUT_OF_ORDER"].includes(r.status)),
+    ) ?? [];
+  const grouped = new Map<string, { title: string; rooms: Room[] }>();
+  for (const room of visible) {
+    const title = room.type.trim() || "Other";
+    const key = title.toLocaleLowerCase();
+    const group = grouped.get(key) ?? { title, rooms: [] };
+    group.rooms.push(room);
+    grouped.set(key, group);
+  }
+  const roomGroups = Array.from(grouped.values()).sort((a, b) =>
+    a.title.localeCompare(b.title),
+  );
+  const busiest =
+    rooms?.reduce<Room | null>(
+      (top, room) =>
+        !top || (room.stayCount ?? 0) > (top.stayCount ?? 0) ? room : top,
+      null,
+    ) ?? null;
+  return (
+    <>
+      <PageTitle
+        eyebrow="PROPERTY"
+        title="Room board"
+        subtitle="See at a glance which rooms are free and which are occupied."
+        action={
+          <div className="room-count-pill">
+            <BedDouble size={15} /> {rooms?.length ?? 12} rooms
+          </div>
+        }
+      />
+      {loading ? (
+        <Loading />
+      ) : !rooms ? (
+        <ErrorPanel message={error} />
+      ) : (
+        <>
+          <div className="room-quick-counts">
+            <div className="room-count-box free">
+              <span>Free rooms</span>
+              <strong>{freeCount}</strong>
+            </div>
+            <div className="room-count-box occupied">
+              <span>Occupied rooms</span>
+              <strong>{occupiedCount}</strong>
+            </div>
+            <div className="room-count-box attention">
+              <span>Need attention</span>
+              <strong>{rooms.length - freeCount - occupiedCount}</strong>
+            </div>
+          </div>
+          <div className="toolbar room-filter-toolbar">
+            <div className="segmented room-filter" aria-label="Filter rooms">
+              <button
+                className={filter === "ALL" ? "selected" : ""}
+                onClick={() => setFilter("ALL")}
+              >
+                All ({rooms.length})
+              </button>
+              <button
+                className={filter === "FREE" ? "selected" : ""}
+                onClick={() => setFilter("FREE")}
+              >
+                Free ({freeCount})
+              </button>
+              <button
+                className={filter === "OCCUPIED" ? "selected" : ""}
+                onClick={() => setFilter("OCCUPIED")}
+              >
+                Occupied ({occupiedCount})
+              </button>
+              <button
+                className={filter === "ATTENTION" ? "selected" : ""}
+                onClick={() => setFilter("ATTENTION")}
+              >
+                Needs attention ({rooms.length - freeCount - occupiedCount})
+              </button>
+            </div>
+          </div>
+          <div className="room-legend">
+            {[
+              "AVAILABLE",
+              "OCCUPIED",
+              "DIRTY",
+              "CLEAN",
+              "INSPECTED",
+              "OUT_OF_ORDER",
+            ].map((s) => (
+              <span key={s}>
+                <i className={`status-dot dot-${s.toLowerCase()}`} />
+                {statusLabels[s]}
+              </span>
+            ))}
+          </div>
+          {busiest && (busiest.stayCount ?? 0) > 0 && (
+            <div className="busiest-room-note">
+              <Trophy size={16} /> Most stays:{" "}
+              <strong>Room {busiest.number}</strong>
+              <span>{busiest.stayCount} recorded stays</span>
+            </div>
+          )}
+          {roomGroups.length ? (
+            roomGroups.map((group) => {
+              const representative = group.rooms[0];
+              const rate = group.rooms.every(
+                (r) => Number(r.baseRate) === Number(representative.baseRate),
+              )
+                ? money(representative.baseRate)
+                : "Mixed";
+              return (
+                <section
+                  className="room-type-section"
+                  key={group.title.toLocaleLowerCase()}
+                >
+                  <div className="room-type-heading">
+                    <div>
+                      <h2>{group.title} rooms</h2>
+                      <small>
+                        Nightly rate:{" "}
+                        {rate === "Mixed" ? rate : `${rate} / night`}
+                      </small>
+                    </div>
+                    <div className="room-type-heading-actions">
+                      <span>
+                        {group.rooms.length}{" "}
+                        {group.rooms.length === 1 ? "room" : "rooms"}
+                      </span>
+                      {canManage && (
+                        <button
+                          className="small-button"
+                          onClick={() => setEditing(representative)}
+                        >
+                          <Pencil size={13} /> Edit type price
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="room-grid">
+                    {group.rooms.map((room) => (
+                      <RoomBoardCard
+                        key={room.id}
+                        room={room}
+                        isBusiest={
+                          room.id === busiest?.id && (room.stayCount ?? 0) > 0
+                        }
+                        canManage={canManage}
+                        onManage={() => setEditing(room)}
+                        onStatusChange={change}
+                        onChooseRoom={onChooseRoom}
+                      />
+                    ))}
+                  </div>
+                </section>
+              );
+            })
+          ) : (
+            <Card>
+              <Empty
+                title="No rooms in this filter"
+                copy="Choose another room group to see more rooms."
+              />
+            </Card>
+          )}
+        </>
+      )}
+      {editing && (
+        <RoomEditModal
+          room={editing}
+          knownRooms={rooms ?? []}
+          onClose={() => setEditing(null)}
+          onSave={saveRoom}
+        />
+      )}
+    </>
+  );
+}
+
+function RoomBoardCard({
+  room,
+  isBusiest,
+  canManage,
+  onManage,
+  onStatusChange,
+  onChooseRoom,
+}: {
+  room: Room;
+  isBusiest: boolean;
+  canManage: boolean;
+  onManage: () => void;
+  onStatusChange: (room: Room, status: string) => void;
+  onChooseRoom: (room: Room) => void;
+}) {
+  return (
+    <article className={`room-card room-${room.status.toLowerCase()}`}>
+      <div className="room-card-top">
+        <span className="room-number">{room.number}</span>
+        <Badge value={room.status} />
+      </div>
+      <div className="room-type">
+        {room.type} room <span>·</span> {money(room.baseRate)} / night
+      </div>
+      <div className="room-stay-count">
+        {isBusiest && <Trophy size={13} />} {room.stayCount ?? 0}{" "}
+        {(room.stayCount ?? 0) === 1 ? "stay" : "stays"}
+        {isBusiest ? " · Most stays" : ""}
+      </div>
+      {room.stays?.[0]?.guest && (
+        <div className="room-guest">
+          <div className="avatar avatar-guest">
+            {room.stays[0].guest.firstName[0]}
+            {room.stays[0].guest.lastName[0]}
+          </div>
+          <span>
+            <strong>{guestName(room.stays[0].guest)}</strong>
+            <small>Currently staying</small>
+          </span>
+        </div>
+      )}
+      {room.notes && <p className="room-notes">{room.notes}</p>}
+      <div className="room-card-bottom">
+        <select
+          aria-label={`Update room ${room.number} status`}
+          value={room.status}
+          onChange={(e) => onStatusChange(room, e.target.value)}
+        >
+          <option value="AVAILABLE">Available</option>
+          <option value="OCCUPIED">Occupied</option>
+          <option value="DIRTY">Dirty</option>
+          <option value="CLEAN">Clean</option>
+          <option value="INSPECTED">Inspected</option>
+          <option value="OUT_OF_ORDER">Out of order</option>
+        </select>
+        {["AVAILABLE", "CLEAN", "INSPECTED"].includes(room.status) && (
+          <button
+            className="small-button room-action-button"
+            onClick={() => onChooseRoom(room)}
+          >
+            Check in / reserve
+          </button>
+        )}
+      </div>
+      {canManage && (
+        <button className="text-button room-manage-button" onClick={onManage}>
+          <Pencil size={14} /> Manage room
+        </button>
+      )}
+    </article>
+  );
+}
+
+function RoomEditModal({
+  room,
+  knownRooms,
+  onClose,
+  onSave,
+}: {
+  room: Room;
+  knownRooms: Room[];
+  onClose: () => void;
+  onSave: (room: Room, values: Record<string, unknown>) => Promise<void>;
+}) {
+  const [number, setNumber] = useState(room.number),
+    [type, setType] = useState(room.type),
+    [rate, setRate] = useState(String(room.baseRate)),
+    [floor, setFloor] = useState(
+      room.floor === null || room.floor === undefined ? "" : String(room.floor),
+    ),
+    [capacity, setCapacity] = useState(String(room.capacity ?? 2)),
+    [notes, setNotes] = useState(room.notes ?? ""),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState("");
+  function changeType(next: string) {
+    setType(next);
+    const match = knownRooms.find(
+      (candidate) =>
+        candidate.id !== room.id &&
+        candidate.type.toLocaleLowerCase() === next.trim().toLocaleLowerCase(),
+    );
+    if (match) setRate(String(match.baseRate));
+  }
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      const typeChanged = type.trim() !== room.type;
+      await onSave(room, {
+        number: number.trim(),
+        type: type.trim(),
+        ...(typeChanged && Number(rate) === Number(room.baseRate)
+          ? {}
+          : { baseRate: Number(rate) }),
+        floor: floor === "" ? undefined : Number(floor),
+        capacity: Number(capacity),
+        notes: notes.trim() || null,
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not save room");
+      setBusy(false);
+    }
+  }
+  return (
+    <Modal
+      title={`Manage room ${room.number}`}
+      subtitle="Room type price is shared by all rooms in that type."
+      onClose={onClose}
+    >
+      <form className="modal-form" onSubmit={submit}>
+        <div className="form-grid">
+          <Field label="Room number">
+            <input
+              required
+              maxLength={12}
+              value={number}
+              onChange={(e) => setNumber(e.target.value)}
+            />
+          </Field>
+          <Field label="Room type">
+            <input
+              required
+              maxLength={60}
+              value={type}
+              onChange={(e) => changeType(e.target.value)}
+            />
+          </Field>
+          <Field label="Type nightly price">
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              required
+              value={rate}
+              onChange={(e) => setRate(e.target.value)}
+            />
+          </Field>
+          <Field label="Floor">
+            <input
+              type="number"
+              step="1"
+              value={floor}
+              onChange={(e) => setFloor(e.target.value)}
+            />
+          </Field>
+          <Field label="Guest capacity">
+            <input
+              type="number"
+              min="1"
+              max="12"
+              step="1"
+              required
+              value={capacity}
+              onChange={(e) => setCapacity(e.target.value)}
+            />
+          </Field>
+          <Field label="Room notes" className="wide-field">
+            <textarea
+              rows={3}
+              maxLength={1000}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+            />
+          </Field>
+        </div>
+        {error && <div className="form-error">{error}</div>}
+        <div className="modal-actions">
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={onClose}
+            disabled={busy}
+          >
+            Cancel
+          </button>
+          <button className="primary-button" disabled={busy}>
+            <Check size={15} />
+            {busy ? "Saving…" : "Save room"}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function ReservationsPage({
+  openCheckIn,
+  roomForReservation,
+  onReservationRoomUsed,
+}: {
+  openCheckIn: (r: Reservation) => void;
+  roomForReservation: Room | null;
+  onReservationRoomUsed: () => void;
+}) {
+  const [mode, setMode] = useState<"day" | "month">("day"),
+    [month, setMonth] = useState(today().slice(0, 7)),
+    [query, setQuery] = useState(""),
+    [editing, setEditing] = useState<Reservation | null>(null),
+    [selectedGuest, setSelectedGuest] = useState<Guest | null>(null);
+  const [canceling, setCanceling] = useState<Reservation | null>(null);
+  const [guestNameInput, setGuestNameInput] = useState(""),
+    [guestPhoneInput, setGuestPhoneInput] = useState(""),
+    [existingGuest, setExistingGuest] = useState<Guest | null>(null);
+  const from = mode === "month" ? `${month}-01` : today(),
+    to =
+      mode === "month" ? shiftMonth(month, 1) + "-01" : shiftDay(today(), 31);
+  const {
+    data: reservations,
+    loading,
+    error,
+    reload,
+  } = useLoad<Reservation[]>(`/reservations?from=${from}&to=${to}`);
+  const { data: rooms } = useLoad<Room[]>("/rooms");
+  const lookupQuery = [guestNameInput, guestPhoneInput]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+  const { data: guestMatches } = useLoad<Guest[]>(
+    lookupQuery.length >= 2
+      ? `/guests?q=${encodeURIComponent(lookupQuery)}`
+      : null,
+    [lookupQuery],
+  );
+  const filtered = useMemo(
+    () =>
+      reservations?.filter((r) =>
+        `${guestName(r.guest)} ${r.confirmationCode} ${r.groupName ?? ""}`
+          .toLowerCase()
+          .includes(query.toLowerCase()),
+      ),
+    [reservations, query],
+  );
+  const create = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const form = e.currentTarget;
+    const f = new FormData(form);
+    const guestText = guestNameInput.trim().split(/\s+/);
+    try {
+      await post("/reservations", {
+        guestId: existingGuest?.id,
+        guest: existingGuest
+          ? undefined
+          : {
+              firstName: guestText[0],
+              lastName: guestText.slice(1).join(" ") || "Guest",
+              phone: guestPhoneInput || undefined,
+            },
+        source: f.get("source"),
+        arrivalDate: f.get("arrival"),
+        departureDate: f.get("departure"),
+        roomId: f.get("room") || undefined,
+        roomType: f.get("roomType") || undefined,
+        nightlyRate: Number(f.get("rate")),
+        depositAmount: Number(f.get("deposit") || 0),
+        depositMethod: f.get("depositMethod"),
+        adults: Number(f.get("adults") || 1),
+        groupName: f.get("groupName") || undefined,
+        groupCode: f.get("groupName")
+          ? String(f.get("groupName")).toUpperCase().replaceAll(" ", "-")
+          : undefined,
+      });
+      form.reset();
+      setGuestNameInput("");
+      setGuestPhoneInput("");
+      setExistingGuest(null);
+      onReservationRoomUsed();
+      reload();
+      window.dispatchEvent(
+        new CustomEvent("hms:toast", { detail: "Reservation created" }),
+      );
+    } catch (err) {
+      window.dispatchEvent(
+        new CustomEvent("hms:toast", {
+          detail:
+            err instanceof Error ? err.message : "Could not create reservation",
+        }),
+      );
+    }
+  };
+  return (
+    <>
+      <PageTitle
+        eyebrow="FRONT DESK"
+        title="Reservations"
+        subtitle="Manage phone bookings, walk-ins and group stays."
+        action={
+          <button
+            className="primary-button"
+            onClick={() =>
+              document
+                .getElementById("new-reservation")
+                ?.scrollIntoView({ behavior: "smooth" })
+            }
+          >
+            <Plus size={16} /> New reservation
+          </button>
+        }
+      />
+      <div className="toolbar">
+        <div className="segmented">
+          <button
+            className={mode === "day" ? "selected" : ""}
+            onClick={() => setMode("day")}
+          >
+            Daily
+          </button>
+          <button
+            className={mode === "month" ? "selected" : ""}
+            onClick={() => setMode("month")}
+          >
+            Monthly board
+          </button>
+        </div>
+        <div className="month-control">
+          <button
+            className="icon-button"
+            onClick={() => setMonth(shiftMonth(month, -1))}
+          >
+            <ChevronLeft size={17} />
+          </button>
+          <strong>
+            {new Date(`${month}-15T12:00:00`).toLocaleDateString(undefined, {
+              month: "long",
+              year: "numeric",
+            })}
+          </strong>
+          <button
+            className="icon-button"
+            onClick={() => setMonth(shiftMonth(month, 1))}
+          >
+            <ChevronRight size={17} />
+          </button>
+        </div>
+        <div className="search-box">
+          <Search size={16} />
+          <input
+            placeholder="Search guest or group"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </div>
+      </div>
+      {mode === "month" && rooms && filtered && (
+        <MonthlyBoard
+          rooms={rooms}
+          reservations={filtered.filter(
+            (r) => !["CANCELLED", "NO_SHOW"].includes(r.status),
+          )}
+          month={month}
+          onGuest={setSelectedGuest}
+        />
+      )}
+      {mode === "day" && (
+        <Card className="table-card">
+          <SectionHeading
+            title="Reservation list"
+            meta={`${filtered?.length ?? 0} upcoming stays`}
+          />
+          {loading ? (
+            <Loading />
+          ) : !filtered ? (
+            <ErrorPanel message={error} />
+          ) : filtered.length === 0 ? (
+            <Empty
+              title="No reservations in this period"
+              copy="Create a reservation to get started."
+            />
+          ) : (
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Guest</th>
+                    <th>Dates</th>
+                    <th>Room</th>
+                    <th>Source</th>
+                    <th>Deposit</th>
+                    <th>Status</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((r) => (
+                    <tr key={r.id}>
+                      <td>
+                        <strong>{guestName(r.guest)}</strong>
+                        <small>
+                          {r.confirmationCode}
+                          {r.groupName ? ` · ${r.groupName}` : ""}
+                          {r.cancellationNote ? ` · ${r.cancellationNote}` : ""}
+                        </small>
+                      </td>
+                      <td>
+                        {dateLabel(r.arrivalDate)} –{" "}
+                        {dateLabel(r.departureDate)}
+                      </td>
+                      <td>
+                        {r.room?.number
+                          ? `Room ${r.room.number}`
+                          : (r.roomType ?? "Unassigned")}
+                      </td>
+                      <td>
+                        <span className="source-label">
+                          {r.source.replace("_", " ")}
+                        </span>
+                      </td>
+                      <td>{money(r.depositAmount)}</td>
+                      <td>
+                        <Badge value={r.status} />
+                      </td>
+                      <td>
+                        {["CONFIRMED", "PENDING"].includes(r.status) ? (
+                          <div className="reservation-actions">
+                            <button
+                              className="small-button"
+                              onClick={() => openCheckIn(r)}
+                            >
+                              Check in
+                            </button>
+                            <button
+                              className="icon-button"
+                              title="Cancel reservation"
+                              onClick={() => setCanceling(r)}
+                            >
+                              <X size={16} />
+                            </button>
+                          </div>
+                        ) : null}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
+      )}
+      <Card className="create-res-card" id="new-reservation">
+        <SectionHeading
+          title="Create a reservation"
+          meta="Phone, walk-in, or group booking"
+        />
+        <form className="form-grid" onSubmit={create}>
+          <Field label="Guest name">
+            <input
+              name="guest"
+              placeholder="Full name"
+              required
+              value={guestNameInput}
+              onChange={(e) => {
+                setGuestNameInput(e.target.value);
+                setExistingGuest(null);
+              }}
+            />
+          </Field>
+          <Field label="Phone">
+            <input
+              name="phone"
+              placeholder="Phone number"
+              value={guestPhoneInput}
+              onChange={(e) => {
+                setGuestPhoneInput(e.target.value);
+                setExistingGuest(null);
+              }}
+            />
+          </Field>
+          {existingGuest ? (
+            <div className="guest-match selected">
+              <UserRound size={16} />
+              <span>
+                <strong>
+                  Using existing guest: {guestName(existingGuest)}
+                </strong>
+                <small>
+                  {existingGuest.phone || "No phone on file"} · no duplicate
+                  profile will be created
+                </small>
+              </span>
+              <button
+                type="button"
+                className="text-button"
+                onClick={() => setExistingGuest(null)}
+              >
+                Change
+              </button>
+            </div>
+          ) : (
+            !!guestMatches?.length && (
+              <div className="guest-match-list">
+                <strong>
+                  Possible existing guests — select one to reuse their profile
+                </strong>
+                {guestMatches.slice(0, 4).map((g) => (
+                  <button
+                    type="button"
+                    className="guest-match-option"
+                    key={g.id}
+                    onClick={() => {
+                      setExistingGuest(g);
+                      setGuestNameInput(guestName(g));
+                      setGuestPhoneInput(g.phone ?? "");
+                    }}
+                  >
+                    <span>
+                      <b>{guestName(g)}</b>
+                      <small>
+                        {g.phone || "No phone on file"}
+                        {g.nationality ? ` · ${g.nationality}` : ""}
+                      </small>
+                    </span>
+                    <span className="text-button">Use profile</span>
+                  </button>
+                ))}
+              </div>
+            )
+          )}
+          <Field label="Booking source">
+            <select name="source">
+              <option value="PHONE">Phone booking</option>
+              <option value="WALK_IN">Walk-in</option>
+              <option value="GROUP">Group booking</option>
+            </select>
+          </Field>
+          <Field label="Group name (optional)">
+            <input name="groupName" placeholder="e.g. Regional workshop" />
+          </Field>
+          <Field label="Arrival">
+            <input name="arrival" type="date" defaultValue={today()} required />
+          </Field>
+          <Field label="Departure">
+            <input
+              name="departure"
+              type="date"
+              defaultValue={shiftDay(today(), 1)}
+              required
+            />
+          </Field>
+          <Field label="Room (optional)">
+            <select name="room" defaultValue={roomForReservation?.id ?? ""}>
+              <option value="">Assign later</option>
+              {rooms?.map((r) => (
+                <option value={r.id} key={r.id}>
+                  {r.number} · {r.type}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Room type">
+            <input name="roomType" placeholder="Standard, twin…" />
+          </Field>
+          <Field label="Nightly rate">
+            <input
+              name="rate"
+              type="number"
+              min="0"
+              step="0.01"
+              defaultValue={
+                roomForReservation ? Number(roomForReservation.baseRate) : 0
+              }
+              required
+            />
+          </Field>
+          <Field label="Deposit received">
+            <input
+              name="deposit"
+              type="number"
+              min="0"
+              step="0.01"
+              defaultValue="0"
+            />
+          </Field>
+          <Field label="Deposit method">
+            <select name="depositMethod">
+              <option value="CASH">Cash</option>
+              <option value="COOPAY_EBIRR">Coopay Ebirr</option>
+              <option value="EBIRR_KAAFI">Ebirr Kaafi</option>
+              <option value="CBE_BANK">CBE Bank</option>
+              <option value="OTHER">Other</option>
+            </select>
+          </Field>
+          <Field label="Adults">
+            <input name="adults" type="number" min="1" defaultValue="1" />
+          </Field>
+          <div className="form-actions">
+            <button className="primary-button">
+              <Plus size={16} /> Save reservation
+            </button>
+          </div>
+        </form>
+      </Card>
+      {reservations?.some((r) =>
+        ["CONFIRMED", "PENDING"].includes(r.status),
+      ) && (
+        <Card className="edit-res-card">
+          <SectionHeading
+            title="Edit a reservation"
+            meta="Change dates, room assignment, or deposit details"
+          />
+          <Field label="Select reservation">
+            <select
+              value=""
+              onChange={(e) =>
+                setEditing(
+                  reservations.find((r) => r.id === e.target.value) ?? null,
+                )
+              }
+            >
+              <option value="">Choose a reservation to edit</option>
+              {reservations
+                .filter((r) => ["CONFIRMED", "PENDING"].includes(r.status))
+                .map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.confirmationCode} · {guestName(r.guest)} ·{" "}
+                    {dateLabel(r.arrivalDate)}
+                  </option>
+                ))}
+            </select>
+          </Field>
+        </Card>
+      )}
+      {editing && (
+        <EditReservationModal
+          reservation={editing}
+          rooms={rooms ?? []}
+          onClose={() => setEditing(null)}
+          onSaved={() => {
+            setEditing(null);
+            reload();
+          }}
+        />
+      )}
+      {selectedGuest && (
+        <GuestDetailsModal
+          guest={selectedGuest}
+          onClose={() => setSelectedGuest(null)}
+        />
+      )}
+      {canceling && (
+        <CancelReservationModal
+          reservation={canceling}
+          onClose={() => setCanceling(null)}
+          onCancelled={() => {
+            setCanceling(null);
+            reload();
+          }}
+        />
+      )}
+    </>
+  );
+}
+function CancelReservationModal({
+  reservation,
+  onClose,
+  onCancelled,
+}: {
+  reservation: Reservation;
+  onClose: () => void;
+  onCancelled: () => void;
+}) {
+  const [note, setNote] = useState(""),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState("");
+  async function cancel(e: FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      await post(`/reservations/${reservation.id}/cancel`, {
+        note: note.trim() || undefined,
+      });
+      window.dispatchEvent(
+        new CustomEvent("hms:toast", {
+          detail: `Reservation ${reservation.confirmationCode} cancelled`,
+        }),
+      );
+      onCancelled();
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Could not cancel reservation",
+      );
+      setBusy(false);
+    }
+  }
+  return (
+    <Modal
+      title="Cancel reservation"
+      subtitle={`${guestName(reservation.guest)} · ${reservation.confirmationCode}`}
+      onClose={onClose}
+    >
+      <form className="modal-form" onSubmit={cancel}>
+        <div className="card-notice danger">
+          <strong>Confirm reservation cancellation</strong>Are you sure you want
+          to cancel reservation <strong>{reservation.confirmationCode}</strong>{" "}
+          for {guestName(reservation.guest)} (
+          {dateLabel(reservation.arrivalDate)} –{" "}
+          {dateLabel(reservation.departureDate)})? Any assigned room will be
+          released immediately.
+        </div>
+        <Field label="Cancellation note (optional)">
+          <input
+            placeholder="e.g. Guest called to cancel, flight delay, schedule change"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            autoFocus
+          />
+        </Field>
+        {error && <div className="form-error">{error}</div>}
+        <div className="modal-actions">
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={onClose}
+            disabled={busy}
+          >
+            Keep reservation
+          </button>
+          <button
+            type="submit"
+            className="primary-button danger-button"
+            disabled={busy}
+          >
+            <X size={16} />
+            {busy ? "Cancelling…" : "Confirm cancellation"}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+function EditReservationModal({
+  reservation,
+  rooms,
+  onClose,
+  onSaved,
+}: {
+  reservation: Reservation;
+  rooms: Room[];
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [error, setError] = useState(""),
+    [busy, setBusy] = useState(false);
+  async function submit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const f = new FormData(e.currentTarget);
+    setBusy(true);
+    setError("");
+    try {
+      await patch(`/reservations/${reservation.id}`, {
+        arrivalDate: f.get("arrival"),
+        departureDate: f.get("departure"),
+        roomId: f.get("room") || null,
+        nightlyRate: Number(f.get("rate")),
+        depositAmount: Number(f.get("deposit")),
+        depositMethod: f.get("depositMethod"),
+        notes: f.get("notes") || undefined,
+      });
+      onSaved();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unable to update reservation");
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <Modal
+      title="Edit reservation"
+      subtitle={`${guestName(reservation.guest)} · ${reservation.confirmationCode}`}
+      onClose={onClose}
+    >
+      <form className="modal-form" onSubmit={submit}>
+        <div className="form-grid two">
+          <Field label="Arrival">
+            <input
+              name="arrival"
+              type="date"
+              defaultValue={reservation.arrivalDate.slice(0, 10)}
+              required
+            />
+          </Field>
+          <Field label="Departure">
+            <input
+              name="departure"
+              type="date"
+              defaultValue={reservation.departureDate.slice(0, 10)}
+              required
+            />
+          </Field>
+          <Field label="Room">
+            <select name="room" defaultValue={reservation.roomId ?? ""}>
+              <option value="">Unassigned</option>
+              {rooms.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.number} · {r.type}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Nightly rate">
+            <input
+              name="rate"
+              type="number"
+              min="0"
+              step="0.01"
+              defaultValue={Number(reservation.nightlyRate)}
+              required
+            />
+          </Field>
+          <Field label="Deposit">
+            <input
+              name="deposit"
+              type="number"
+              min="0"
+              step="0.01"
+              defaultValue={Number(reservation.depositAmount)}
+            />
+          </Field>
+          <Field label="Deposit method">
+            <select
+              name="depositMethod"
+              defaultValue={reservation.depositMethod ?? "CASH"}
+            >
+              {reservation.depositMethod &&
+                ![
+                  "CASH",
+                  "COOPAY_EBIRR",
+                  "EBIRR_KAAFI",
+                  "CBE_BANK",
+                  "OTHER",
+                ].includes(reservation.depositMethod) && (
+                  <option value={reservation.depositMethod}>
+                    Previous method ·{" "}
+                    {reservation.depositMethod.replaceAll("_", " ")}
+                  </option>
+                )}
+              <option value="CASH">Cash</option>
+              <option value="COOPAY_EBIRR">Coopay Ebirr</option>
+              <option value="EBIRR_KAAFI">Ebirr Kaafi</option>
+              <option value="CBE_BANK">CBE Bank</option>
+              <option value="OTHER">Other</option>
+            </select>
+          </Field>
+          <Field label="Notes">
+            <input
+              name="notes"
+              defaultValue=""
+              placeholder="Reservation notes"
+            />
+          </Field>
+        </div>
+        {error && <div className="form-error">{error}</div>}
+        <div className="modal-actions">
+          <button type="button" className="secondary-button" onClick={onClose}>
+            Cancel
+          </button>
+          <button className="primary-button" disabled={busy}>
+            <Check size={16} />
+            {busy ? "Saving…" : "Save changes"}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+function GuestDetailsModal({
+  guest,
+  onClose,
+}: {
+  guest: Guest;
+  onClose: () => void;
+}) {
+  const { data, loading, error } = useLoad<any>(`/guests/${guest.id}`, [
+    guest.id,
+  ]);
+  return (
+    <Modal
+      title={guestName(guest)}
+      subtitle="Guest profile and stay history"
+      onClose={onClose}
+      wide
+    >
+      {loading ? (
+        <Loading />
+      ) : !data ? (
+        <ErrorPanel message={error} />
+      ) : (
+        <div className="guest-detail-body">
+          <div className="guest-detail-grid">
+            <div className="guest-detail-item">
+              <Phone size={15} />
+              <span>
+                <small>Phone</small>
+                <strong>{data.phone || "Not provided"}</strong>
+              </span>
+            </div>
+            <div className="guest-detail-item">
+              <Mail size={15} />
+              <span>
+                <small>Email</small>
+                <strong>{data.email || "Not provided"}</strong>
+              </span>
+            </div>
+            <div className="guest-detail-item">
+              <MapPin size={15} />
+              <span>
+                <small>Nationality</small>
+                <strong>{data.nationality || "Not provided"}</strong>
+              </span>
+            </div>
+            <div className="guest-detail-item">
+              <IdCard size={15} />
+              <span>
+                <small>ID details</small>
+                <strong>
+                  {[data.idType?.replaceAll("_", " "), data.idNumber]
+                    .filter(Boolean)
+                    .join(" · ") || "Not provided"}
+                </strong>
+              </span>
+            </div>
+          </div>
+          {data.insights && (
+            <div className="guest-detail-stats">
+              <Metric label="Total stays" value={data.insights.totalStays} />
+              <Metric label="Total nights" value={data.insights.totalNights} />
+              <Metric
+                label="Total spent"
+                value={money(data.insights.totalSpent)}
+              />
+              <Metric
+                label="Last stay"
+                value={dateLabel(data.insights.lastStayDate, {
+                  year: "numeric",
+                  month: "short",
+                  day: "numeric",
+                })}
+              />
+            </div>
+          )}
+          {(data.preferences || data.notes) && (
+            <div className="guest-notes">
+              <strong>Preferences and notes</strong>
+              <p>{data.preferences || "No preferences saved."}</p>
+              {data.notes && <p>{data.notes}</p>}
+            </div>
+          )}
+          <SectionHeading
+            title="Stay history"
+            meta={`${data.stays?.length ?? 0} stays`}
+          />
+          {data.stays?.length ? (
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Room</th>
+                    <th>Check-in</th>
+                    <th>Check-out</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.stays.map((stay: any) => (
+                    <tr key={stay.id}>
+                      <td>Room {stay.room.number}</td>
+                      <td>
+                        {dateLabel(stay.checkInAt, {
+                          year: "numeric",
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </td>
+                      <td>
+                        {dateLabel(stay.checkOutAt ?? stay.expectedCheckOut, {
+                          year: "numeric",
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </td>
+                      <td>
+                        <Badge value={stay.status} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <Empty
+              title="No completed stays yet"
+              copy="Past and current stays will appear here."
+            />
+          )}
+        </div>
+      )}
+    </Modal>
+  );
+}
+function MonthlyBoard({
+  rooms,
+  reservations,
+  month,
+  onGuest,
+}: {
+  rooms: Room[];
+  reservations: Reservation[];
+  month: string;
+  onGuest: (guest: Guest) => void;
+}) {
+  const count = new Date(
+    Number(month.slice(0, 4)),
+    Number(month.slice(5, 7)),
+    0,
+  ).getDate();
+  const days = Array.from({ length: count }, (_, i) => i + 1);
+  return (
+    <Card className="month-board-card">
+      <div className="month-board-scroll">
+        <table className="month-board">
+          <thead>
+            <tr>
+              <th>Room</th>
+              {days.map((d) => (
+                <th key={d}>{d}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rooms.map((room) => (
+              <tr key={room.id}>
+                <th>
+                  {room.number}
+                  <small>{room.type}</small>
+                </th>
+                {days.map((d) => {
+                  const date = `${month}-${String(d).padStart(2, "0")}`;
+                  const res = reservations.find(
+                    (r) =>
+                      r.roomId === room.id &&
+                      r.arrivalDate.slice(0, 10) <= date &&
+                      r.departureDate.slice(0, 10) > date,
+                  );
+                  return (
+                    <td key={d}>
+                      {res && (
+                        <button
+                          type="button"
+                          className={`board-stay ${res.source.toLowerCase()}`}
+                          title={`Open ${guestName(res.guest)} · ${res.confirmationCode}`}
+                          onClick={() => onGuest(res.guest)}
+                          aria-label={`View ${guestName(res.guest)} guest details`}
+                        >
+                          {res.arrivalDate.slice(0, 10) === date
+                            ? guestName(res.guest)
+                            : "·"}
+                        </button>
+                      )}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="board-legend">
+        <span>
+          <i className="board-swatch confirmed" />
+          Reserved
+        </span>
+        <span>
+          <i className="board-swatch walk-in" />
+          Walk-in
+        </span>
+        <span>Click a guest name in the board to view guest details</span>
+      </div>
+    </Card>
+  );
+}
+
+function RoomActionModal({
+  room,
+  onClose,
+  onCheckIn,
+  onReserve,
+}: {
+  room: Room;
+  onClose: () => void;
+  onCheckIn: () => void;
+  onReserve: () => void;
+}) {
+  return (
+    <Modal
+      title={`Room ${room.number}`}
+      subtitle={`${room.type} · ${statusLabels[room.status]} · ${money(room.baseRate)} per night`}
+      onClose={onClose}
+    >
+      <div className="room-action-options">
+        <p>What would you like to do with this room?</p>
+        <button className="primary-button" onClick={onCheckIn}>
+          <DoorOpen size={16} /> Check in a guest
+        </button>
+        <button className="secondary-button" onClick={onReserve}>
+          <CalendarDays size={16} /> Make a reservation
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+function CheckInModal({
+  reservation,
+  initialRoomId,
+  onClose,
+  onSave,
+}: {
+  reservation?: Reservation;
+  initialRoomId?: string;
+  onClose: () => void;
+  onSave: (a: () => Promise<unknown>, s: string) => void;
+}) {
+  const { data: rooms } = useLoad<Room[]>("/rooms");
+  const [roomId, setRoomId] = useState(
+    reservation?.roomId ?? initialRoomId ?? "",
+  );
+  const [image, setImage] = useState<File | null>(null);
+  const { data: freeRooms } = useLoad<Room[]>("/rooms");
+  const available =
+    freeRooms?.filter(
+      (r) => !["OCCUPIED", "DIRTY", "OUT_OF_ORDER"].includes(r.status),
+    ) ?? [];
+  async function submit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = new FormData(e.currentTarget);
+    onSave(async () => {
+      const result = await post<{ stay: Stay; guest: Guest }>(
+        "/stays/check-in",
+        {
+          reservationId: reservation?.id,
+          guestId: reservation?.guest.id,
+          guest: reservation
+            ? undefined
+            : {
+                firstName: form.get("firstName"),
+                lastName: form.get("lastName"),
+                phone: form.get("phone"),
+              },
+          roomId,
+          expectedCheckOut: form.get("departure"),
+          nightlyRate: Number(form.get("rate") || 0),
+          adults: Number(form.get("adults") || 1),
+          idType: form.get("idType") || undefined,
+          idNumber: form.get("idNumber") || undefined,
+        },
+      );
+      if (image) {
+        const data = new FormData();
+        data.set("image", image);
+        data.set("documentType", String(form.get("idType") || "OTHER"));
+        try {
+          await api(`/guests/${result.guest.id}/documents`, {
+            method: "POST",
+            body: data,
+          });
+        } catch {
+          window.dispatchEvent(
+            new CustomEvent("hms:toast", {
+              detail:
+                "Check-in is complete, but the ID photo did not upload. Retry it from the guest profile when storage is available.",
+            }),
+          );
+        }
+      }
+      return result;
+    }, "Guest checked in");
+  }
+  return (
+    <Modal
+      title="Check in guest"
+      subtitle={
+        reservation
+          ? `${guestName(reservation.guest)} · ${reservation.confirmationCode}`
+          : "Walk-in guest"
+      }
+      onClose={onClose}
+    >
+      <form className="modal-form" onSubmit={submit}>
+        {!reservation && (
+          <div className="form-grid two">
+            <Field label="First name">
+              <input name="firstName" required />
+            </Field>
+            <Field label="Last name">
+              <input name="lastName" required />
+            </Field>
+            <Field label="Phone">
+              <input name="phone" />
+            </Field>
+          </div>
+        )}
+        <Field label="Assign room">
+          <select
+            required
+            value={roomId}
+            onChange={(e) => setRoomId(e.target.value)}
+          >
+            <option value="">Choose a room</option>
+            {available.map((r) => (
+              <option value={r.id} key={r.id}>
+                {r.number} · {r.type} · {statusLabels[r.status]}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <div className="form-grid two">
+          <Field label="Expected departure">
+            <input
+              name="departure"
+              type="date"
+              defaultValue={
+                reservation?.departureDate.slice(0, 10) ?? shiftDay(today(), 1)
+              }
+              required
+            />
+          </Field>
+          <Field label="Nightly rate">
+            <input
+              name="rate"
+              type="number"
+              min="0"
+              step="0.01"
+              defaultValue={Number(
+                reservation?.nightlyRate ??
+                  rooms?.find((r) => r.id === roomId)?.baseRate ??
+                  0,
+              )}
+              required
+            />
+          </Field>
+          <Field label="Adults">
+            <input name="adults" type="number" min="1" defaultValue="1" />
+          </Field>
+          <Field label="ID type">
+            <select name="idType">
+              <option value="">Choose type</option>
+              <option value="NATIONAL_ID">National ID</option>
+              <option value="PASSPORT">Passport</option>
+              <option value="DRIVERS_LICENSE">Driver's license</option>
+              <option value="OTHER">Other</option>
+            </select>
+          </Field>
+          <Field label="ID number">
+            <input name="idNumber" />
+          </Field>
+          <Field label="ID photo (private)">
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              capture="environment"
+              onChange={(e) => setImage(e.target.files?.[0] ?? null)}
+            />
+          </Field>
+        </div>
+        <div className="privacy-note">
+          <span className="lock-dot" /> ID photos are compressed before private
+          storage. Access is limited to authorized staff.
+        </div>
+        <div className="modal-actions">
+          <button type="button" className="secondary-button" onClick={onClose}>
+            Cancel
+          </button>
+          <button className="primary-button">
+            <Check size={16} /> Complete check-in
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function GuestsPage({ flash }: { flash: (s: string) => void }) {
+  const [query, setQuery] = useState(""),
+    [selected, setSelected] = useState<string | null>(null),
+    [version, setVersion] = useState(0),
+    [editing, setEditing] = useState(false);
+  const { data: guests, loading } = useLoad<Guest[]>(
+    `/guests?q=${encodeURIComponent(query)}`,
+    [query, version],
+  );
+  const { data: detail } = useLoad<any>(
+    selected ? `/guests/${selected}` : null,
+    [selected, version],
+  );
+  return (
+    <>
+      <PageTitle
+        eyebrow="RELATIONSHIPS"
+        title="Guests"
+        subtitle="Guest profiles, preferences and stay history."
+        action={
+          <div className="search-box guest-search">
+            <Search size={16} />
+            <input
+              placeholder="Name, phone, ID number"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          </div>
+        }
+      />
+      <div className="guest-layout">
+        <Card className="guest-list-card">
+          <SectionHeading
+            title="Guest directory"
+            meta={`${guests?.length ?? 0} guests`}
+          />
+          {loading ? (
+            <Loading />
+          ) : guests?.length ? (
+            <div className="guest-list">
+              {guests.map((g) => (
+                <button
+                  className={`guest-list-item ${selected === g.id ? "selected" : ""}`}
+                  onClick={() => setSelected(g.id)}
+                  key={g.id}
+                >
+                  <span className="avatar avatar-guest">
+                    {g.firstName[0]}
+                    {g.lastName[0]}
+                  </span>
+                  <span>
+                    <strong>{guestName(g)}</strong>
+                    <small>{g.phone ?? g.email ?? "No contact details"}</small>
+                  </span>
+                  <ChevronRight size={16} />
+                </button>
+              ))}
+            </div>
+          ) : (
+            <Empty
+              title="No guests found"
+              copy="Try another name or phone number."
+            />
+          )}
+        </Card>
+        <Card className="guest-detail-card">
+          {detail ? (
+            <>
+              <div className="guest-profile-head">
+                <div className="avatar avatar-large">
+                  {detail.firstName[0]}
+                  {detail.lastName[0]}
+                </div>
+                <div>
+                  <h2>{guestName(detail)}</h2>
+                  <p>
+                    {detail.phone ?? "No phone"}
+                    {detail.nationality ? ` · ${detail.nationality}` : ""}
+                  </p>
+                </div>
+                <button
+                  className="secondary-button"
+                  onClick={() => setEditing(true)}
+                >
+                  Edit profile
+                </button>
+              </div>
+              {detail.insights && (
+                <div className="guest-insight-grid">
+                  <Metric
+                    label="Total stays"
+                    value={detail.insights.totalStays}
+                  />
+                  <Metric
+                    label="Total nights"
+                    value={detail.insights.totalNights}
+                  />
+                  <Metric
+                    label="Total spent"
+                    value={money(detail.insights.totalSpent)}
+                  />
+                  <Metric
+                    label="Last stay"
+                    value={dateLabel(detail.insights.lastStayDate)}
+                  />
+                </div>
+              )}
+              <div className="guest-info-grid">
+                <div>
+                  <span>ID document</span>
+                  <strong>
+                    {detail.idType
+                      ? `${statusLabels[detail.idType] ?? detail.idType} · ${detail.idNumber ?? "no number"}`
+                      : "Not recorded"}
+                  </strong>
+                </div>
+                <div>
+                  <span>Preferences</span>
+                  <strong>
+                    {detail.preferences ?? "No preferences noted"}
+                  </strong>
+                </div>
+                <div>
+                  <span>Notes</span>
+                  <strong>{detail.notes ?? "No notes"}</strong>
+                </div>
+              </div>
+              <SectionHeading
+                title="Stay history"
+                meta={`${detail.stays.length} stays`}
+              />
+              {detail.stays.length ? (
+                <div className="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Dates</th>
+                        <th>Room</th>
+                        <th>Status</th>
+                        <th>Paid</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {detail.stays.map((s: any) => (
+                        <tr key={s.id}>
+                          <td>
+                            {dateLabel(s.checkInAt)} –{" "}
+                            {dateLabel(s.checkOutAt ?? s.expectedCheckOut)}
+                          </td>
+                          <td>{s.room.number}</td>
+                          <td>
+                            <Badge value={s.status} />
+                          </td>
+                          <td>
+                            {money(
+                              s.folio?.payments.reduce(
+                                (n: number, p: any) => n + Number(p.amount),
+                                0,
+                              ),
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <Empty
+                  title="No stay history yet"
+                  copy="Completed visits will appear here."
+                />
+              )}
+              <SectionHeading title="ID documents" />
+              {detail.documents.length ? (
+                <div className="document-list">
+                  {detail.documents.map((doc: any) => (
+                    <button
+                      className="document-item"
+                      key={doc.id}
+                      onClick={async () => {
+                        try {
+                          const { url } = await api<{ url: string }>(
+                            `/guests/documents/${doc.id}/url`,
+                          );
+                          window.open(url, "_blank", "noopener");
+                        } catch (e) {
+                          flash(
+                            e instanceof Error
+                              ? e.message
+                              : "Unable to open document",
+                          );
+                        }
+                      }}
+                    >
+                      <FileText size={17} />
+                      <span>
+                        {statusLabels[doc.documentType] ?? doc.documentType} ·{" "}
+                        {Math.round(doc.sizeBytes / 1024)} KB
+                      </span>
+                      <span>
+                        View securely <ChevronRight size={14} />
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="subtle-copy">
+                  No ID image stored for this guest.
+                </p>
+              )}
+              <GuestDocumentUpload
+                guestId={detail.id}
+                onUploaded={() => setVersion((v) => v + 1)}
+              />
+            </>
+          ) : (
+            <Empty
+              title="Select a guest"
+              copy="Choose a profile to see stay history and guest insights."
+            />
+          )}
+        </Card>
+      </div>
+      {editing && detail && (
+        <GuestEditModal
+          guest={detail}
+          onClose={() => setEditing(false)}
+          onSaved={() => {
+            setEditing(false);
+            setVersion((x) => x + 1);
+            flash("Guest profile updated");
+          }}
+        />
+      )}
+    </>
+  );
+}
+function GuestDocumentUpload({
+  guestId,
+  onUploaded,
+}: {
+  guestId: string;
+  onUploaded: () => void;
+}) {
+  const [file, setFile] = useState<File | null>(null),
+    [type, setType] = useState("NATIONAL_ID"),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState("");
+  return (
+    <form
+      className="document-upload"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        if (!file) return;
+        setBusy(true);
+        setError("");
+        const data = new FormData();
+        data.set("image", file);
+        data.set("documentType", type);
+        try {
+          await api(`/guests/${guestId}/documents`, {
+            method: "POST",
+            body: data,
+          });
+          setFile(null);
+          onUploaded();
+        } catch (e) {
+          setError(
+            e instanceof Error ? e.message : "Unable to upload ID photo",
+          );
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      <SectionHeading
+        title="Add an ID photo"
+        meta="Private storage · compressed to WebP"
+      />
+      <div className="form-grid two">
+        <Field label="Document type">
+          <select value={type} onChange={(e) => setType(e.target.value)}>
+            <option value="NATIONAL_ID">National ID</option>
+            <option value="PASSPORT">Passport</option>
+            <option value="DRIVERS_LICENSE">Driver's license</option>
+            <option value="OTHER">Other</option>
+          </select>
+        </Field>
+        <Field label="Photo">
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            capture="environment"
+            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+          />
+        </Field>
+        <div className="form-actions">
+          <button className="secondary-button" disabled={!file || busy}>
+            <Plus size={15} />
+            {busy ? "Uploading…" : "Upload ID photo"}
+          </button>
+        </div>
+      </div>
+      {error && <div className="form-error">{error}</div>}
+    </form>
+  );
+}
+function GuestEditModal({
+  guest,
+  onClose,
+  onSaved,
+}: {
+  guest: Guest;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [error, setError] = useState(""),
+    [busy, setBusy] = useState(false);
+  async function submit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const f = new FormData(e.currentTarget);
+    setBusy(true);
+    try {
+      await patch(`/guests/${guest.id}`, {
+        firstName: f.get("firstName"),
+        lastName: f.get("lastName"),
+        phone: f.get("phone"),
+        email: f.get("email") || null,
+        nationality: f.get("nationality"),
+        idType: f.get("idType") || null,
+        idNumber: f.get("idNumber") || null,
+        preferences: f.get("preferences") || null,
+        notes: f.get("notes") || null,
+      });
+      onSaved();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not update guest");
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <Modal
+      title="Edit guest profile"
+      subtitle={guestName(guest)}
+      onClose={onClose}
+    >
+      <form className="modal-form" onSubmit={submit}>
+        <div className="form-grid two">
+          <Field label="First name">
+            <input name="firstName" defaultValue={guest.firstName} required />
+          </Field>
+          <Field label="Last name">
+            <input name="lastName" defaultValue={guest.lastName} required />
+          </Field>
+          <Field label="Phone">
+            <input name="phone" defaultValue={guest.phone ?? ""} />
+          </Field>
+          <Field label="Email">
+            <input name="email" type="email" defaultValue={guest.email ?? ""} />
+          </Field>
+          <Field label="Nationality">
+            <input name="nationality" defaultValue={guest.nationality ?? ""} />
+          </Field>
+          <Field label="ID type">
+            <select name="idType" defaultValue={guest.idType ?? ""}>
+              <option value="">Not recorded</option>
+              <option value="NATIONAL_ID">National ID</option>
+              <option value="PASSPORT">Passport</option>
+              <option value="DRIVERS_LICENSE">Driver's license</option>
+              <option value="OTHER">Other</option>
+            </select>
+          </Field>
+          <Field label="ID number">
+            <input name="idNumber" defaultValue={guest.idNumber ?? ""} />
+          </Field>
+          <Field label="Preferences">
+            <input name="preferences" defaultValue={guest.preferences ?? ""} />
+          </Field>
+          <Field label="Notes" className="wide-field">
+            <input name="notes" defaultValue={guest.notes ?? ""} />
+          </Field>
+        </div>
+        {error && <div className="form-error">{error}</div>}
+        <div className="modal-actions">
+          <button type="button" className="secondary-button" onClick={onClose}>
+            Cancel
+          </button>
+          <button className="primary-button" disabled={busy}>
+            <Check size={16} />
+            {busy ? "Saving…" : "Save profile"}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+function Metric({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="metric-card">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
+function InHousePage({
+  openFolio,
+  flash,
+}: {
+  openFolio: (s: Stay) => void;
+  flash: (s: string) => void;
+}) {
+  const {
+    data: stays,
+    loading,
+    error,
+    reload,
+  } = useLoad<Stay[]>("/stays/in-house");
+  const [checkingOut, setCheckingOut] = useState<Stay | null>(null);
+  return (
+    <>
+      <PageTitle
+        eyebrow="GUEST SERVICES"
+        title="Guests in-house"
+        subtitle="Active stays, folios and room assignments."
+        action={
+          <button
+            className="primary-button"
+            onClick={() =>
+              window.dispatchEvent(new CustomEvent("hms:open-walkin"))
+            }
+          >
+            <Plus size={16} /> Walk-in check-in
+          </button>
+        }
+      />
+      {loading ? (
+        <Loading />
+      ) : !stays ? (
+        <ErrorPanel message={error} />
+      ) : stays.length === 0 ? (
+        <Card>
+          <Empty
+            title="No guests checked in"
+            copy="New arrivals will show up here after check-in."
+          />
+        </Card>
+      ) : (
+        <div className="inhouse-grid">
+          {stays.map((s) => (
+            <Card className="inhouse-card" key={s.id}>
+              <div className="inhouse-card-top">
+                <div className="avatar avatar-guest">
+                  {s.guest.firstName[0]}
+                  {s.guest.lastName[0]}
+                </div>
+                <Badge value="OCCUPIED" />
+              </div>
+              <h3>{guestName(s.guest)}</h3>
+              <span className="inhouse-room">
+                Room {s.room.number} · {s.room.type}
+              </span>
+              <div className="inhouse-dates">
+                <div>
+                  <span>CHECKED IN</span>
+                  <strong>{dateLabel(s.checkInAt)}</strong>
+                </div>
+                <div>
+                  <span>EXPECTED OUT</span>
+                  <strong>{dateLabel(s.expectedCheckOut)}</strong>
+                </div>
+              </div>
+              <div className="folio-mini">
+                <span>{s.folio?.folioNumber ?? "Folio"} · Balance</span>
+                <strong>
+                  {money(
+                    (s.folio?.items.reduce((n, x) => n + Number(x.amount), 0) ??
+                      0) -
+                      (s.folio?.payments.reduce(
+                        (n, x) => n + Number(x.amount),
+                        0,
+                      ) ?? 0),
+                  )}
+                </strong>
+              </div>
+              <div className="inhouse-actions">
+                <button
+                  className="secondary-button"
+                  onClick={() => openFolio(s)}
+                >
+                  <CreditCard size={15} /> Folio
+                </button>
+                <button
+                  className="small-button"
+                  onClick={() => setCheckingOut(s)}
+                >
+                  Check out
+                </button>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+      {checkingOut && (
+        <CheckOutModal
+          stay={checkingOut}
+          onClose={() => setCheckingOut(null)}
+          onCheckedOut={() => {
+            setCheckingOut(null);
+            reload();
+          }}
+          openFolio={openFolio}
+          flash={flash}
+        />
+      )}
+    </>
+  );
+}
+
+function CheckOutModal({
+  stay,
+  onClose,
+  onCheckedOut,
+  openFolio,
+  flash,
+}: {
+  stay: Stay;
+  onClose: () => void;
+  onCheckedOut: () => void;
+  openFolio: (s: Stay) => void;
+  flash: (s: string) => void;
+}) {
+  const [notes, setNotes] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const charges =
+    stay.folio?.items.reduce((n, x) => n + Number(x.amount), 0) ?? 0;
+  const paid =
+    stay.folio?.payments.reduce((n, x) => n + Number(x.amount), 0) ?? 0;
+  const balance = charges - paid;
+  const hasOutstanding = balance > 0;
+  async function checkout(e: FormEvent) {
+    e.preventDefault();
+    if (hasOutstanding) {
+      setError(
+        `Outstanding balance of ${money(balance)} must be settled before checkout.`,
+      );
+      return;
+    }
+    setBusy(true);
+    setError("");
+    try {
+      await post(`/stays/${stay.id}/check-out`, {
+        notes: notes.trim() || undefined,
+      });
+      flash(
+        `${guestName(stay.guest)} checked out · Room ${stay.room.number} marked dirty`,
+      );
+      onCheckedOut();
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Could not complete check-out",
+      );
+      setBusy(false);
+    }
+  }
+  return (
+    <Modal
+      title="Guest check-out"
+      subtitle={`${guestName(stay.guest)} · Room ${stay.room.number}`}
+      onClose={onClose}
+    >
+      <form className="modal-form" onSubmit={checkout}>
+        {hasOutstanding ? (
+          <div className="card-notice warning">
+            <strong>Outstanding balance: {money(balance)}</strong>This stay
+            cannot be checked out until the folio is settled to zero. Please
+            record payment before finalizing departure.
+          </div>
+        ) : (
+          <div className="card-notice info">
+            <strong>Folio is settled in full</strong>Room {stay.room.number}{" "}
+            will be marked <strong>Dirty</strong>; staff can mark it free from
+            the room board when it is ready.
+          </div>
+        )}
+        <Field label="Departure notes (optional)">
+          <input
+            placeholder="e.g. Keys returned, luggage stored, minibar verified"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            autoFocus={!hasOutstanding}
+          />
+        </Field>
+        {error && <div className="form-error">{error}</div>}
+        <div className="modal-actions">
+          {hasOutstanding ? (
+            <>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={onClose}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="primary-button"
+                onClick={() => {
+                  onClose();
+                  openFolio(stay);
+                }}
+              >
+                <CreditCard size={15} /> Settle folio
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={onClose}
+                disabled={busy}
+              >
+                Cancel
+              </button>
+              <button type="submit" className="primary-button" disabled={busy}>
+                <Check size={16} />
+                {busy ? "Checking out…" : "Complete check-out"}
+              </button>
+            </>
+          )}
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function FolioModal({
+  stay,
+  onClose,
+  flash,
+}: {
+  stay: Stay;
+  onClose: () => void;
+  flash: (s: string) => void;
+}) {
+  const [v, setV] = useState(0);
+  const { data: folio } = useLoad<any>(
+    stay.folio ? `/billing/folio/${stay.folio.id}` : null,
+    [stay.id, v],
+  );
+  const [activeCard, setActiveCard] = useState<
+    "none" | "add_charge" | "record_payment"
+  >("none");
+  const [editingItem, setEditingItem] = useState<any | null>(null);
+  const [removingItem, setRemovingItem] = useState<any | null>(null);
+  if (!stay.folio)
+    return (
+      <Modal title="Folio" onClose={onClose}>
+        <Empty title="No folio found" copy="This stay has no billing folio." />
+      </Modal>
+    );
+  const charge = folio?.summary?.charges ?? 0,
+    paid = folio?.summary?.paid ?? 0;
+  async function record(action: () => Promise<unknown>, message: string) {
+    try {
+      await action();
+      setV((x) => x + 1);
+      flash(message);
+    } catch (e) {
+      flash(e instanceof Error ? e.message : "Could not update folio");
+      throw e;
+    }
+  }
+  async function printInvoice() {
+    try {
+      const inv = await api<Invoice>(`/billing/folio/${folio.id}/invoice`);
+      const w = window.open("", "_blank");
+      if (w) {
+        const printDate = new Date().toLocaleDateString(undefined, {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        });
+        const formatDate = (value?: string | null) =>
+          value
+            ? new Date(value).toLocaleDateString(undefined, {
+                year: "numeric",
+                month: "short",
+                day: "numeric",
+              })
+            : "—";
+        w.document
+          .write(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Invoice ${escapeHtml(inv.folioNumber)}</title><style>
+    @page{size:A4;margin:18mm}*{box-sizing:border-box}body{margin:0;background:#fff;color:#172033;font:14px/1.5 Arial,Helvetica,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}.invoice{max-width:780px;margin:36px auto;padding:0 24px}.topline{height:5px;background:#4338ca;margin-bottom:34px}.header{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;padding-bottom:28px;border-bottom:1px solid #e5e7eb}.brand{display:flex;align-items:center;gap:12px}.mark{display:grid;place-items:center;width:42px;height:42px;border-radius:11px;background:#4338ca;color:#fff;font-size:19px;font-weight:700}.hotel{font-size:20px;font-weight:700;letter-spacing:-.4px;color:#111827}.label{color:#6b7280;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase}.invoice-title{text-align:right}.invoice-title h1{margin:2px 0 4px;font-size:29px;line-height:1.1;letter-spacing:1px;color:#111827}.invoice-title strong{font-size:13px;color:#4338ca}.info-grid{display:grid;grid-template-columns:1.2fr 1fr;gap:18px;margin:28px 0}.info-card{padding:17px 18px;border:1px solid #e5e7eb;border-radius:10px}.info-card h2{margin:0 0 10px;color:#6b7280;font-size:10px;letter-spacing:1.1px;text-transform:uppercase}.info-card strong{display:block;color:#111827;font-size:15px}.info-card p{margin:3px 0;color:#596273;font-size:12px}.stay-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:0 0 30px;padding:16px 18px;background:#f8fafc;border-radius:10px}.stay-grid span{display:block;color:#6b7280;font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase}.stay-grid strong{display:block;margin-top:4px;color:#172033;font-size:13px}.section-title{margin:0 0 10px;color:#111827;font-size:13px;font-weight:700}.items{width:100%;border-collapse:collapse}.items th{padding:11px 12px;background:#f3f4f6;color:#596273;font-size:10px;letter-spacing:.8px;text-align:left;text-transform:uppercase}.items th:first-child{border-radius:7px 0 0 7px}.items th:last-child{border-radius:0 7px 7px 0}.items td{padding:14px 12px;border-bottom:1px solid #edf0f3;color:#374151;font-size:12px}.items .num{text-align:right;white-space:nowrap}.items td:first-child{font-weight:600;color:#172033}.after-items{display:grid;grid-template-columns:1fr 270px;gap:30px;margin-top:24px}.payment-note{color:#6b7280;font-size:11px}.payment-list{width:100%;border-collapse:collapse}.payment-list td{padding:7px 0;border-bottom:1px solid #edf0f3;color:#596273;font-size:11px}.payment-list td:last-child{text-align:right;color:#172033;font-weight:600;white-space:nowrap}.totals{padding:16px 18px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:10px}.total-row{display:flex;justify-content:space-between;gap:12px;padding:5px 0;color:#596273;font-size:12px}.total-row strong{color:#172033}.balance{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:10px -6px -6px;padding:13px 12px;background:#eef2ff;border-radius:7px;color:#3730a3;font-weight:700}.balance strong{font-size:18px;white-space:nowrap}.footer{margin-top:38px;padding-top:16px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;gap:16px;color:#6b7280;font-size:10px}.footer strong{color:#374151}@media(max-width:600px){.invoice{margin:18px auto;padding:0 14px}.header{gap:12px}.hotel{font-size:16px}.invoice-title h1{font-size:23px}.info-grid{grid-template-columns:1fr}.after-items{grid-template-columns:1fr}.stay-grid{gap:8px;padding:13px}.items th,.items td{padding:10px 7px;font-size:10px}.mark{width:36px;height:36px}}@media print{body{font-size:12px}.invoice{max-width:none;margin:0;padding:0}.topline{margin-bottom:26px}.info-card,.totals,.stay-grid{-webkit-print-color-adjust:exact;print-color-adjust:exact}.items tr,.payment-list tr{break-inside:avoid}.footer{margin-top:28px}}
+    </style></head><body><main class="invoice"><div class="topline"></div><header class="header"><div class="brand"><div class="mark">S</div><div><div class="hotel">${escapeHtml(inv.hotel)}</div><div class="label">Guest statement</div></div></div><div class="invoice-title"><div class="label">Invoice</div><h1>INVOICE</h1><strong>${escapeHtml(inv.folioNumber)}</strong></div></header><section class="info-grid"><div class="info-card"><h2>Bill to</h2><strong>${escapeHtml(inv.guest.firstName)} ${escapeHtml(inv.guest.lastName)}</strong>${inv.guest.phone ? `<p>${escapeHtml(inv.guest.phone)}</p>` : ""}${inv.guest.email ? `<p>${escapeHtml(inv.guest.email)}</p>` : ""}</div><div class="info-card"><h2>Invoice details</h2><p>Invoice number <strong>${escapeHtml(inv.folioNumber)}</strong></p><p>Issued <strong>${escapeHtml(printDate)}</strong></p><p>Room <strong>${escapeHtml(inv.room.number)} · ${escapeHtml(inv.room.type)}</strong></p></div></section><section class="stay-grid"><div><span>Check-in</span><strong>${escapeHtml(formatDate(inv.checkIn))}</strong></div><div><span>Check-out</span><strong>${escapeHtml(formatDate(inv.checkOut))}</strong></div><div><span>Room</span><strong>${escapeHtml(inv.room.number)}</strong></div></section><h2 class="section-title">Charges</h2><table class="items"><thead><tr><th>Description</th><th class="num">Qty</th><th class="num">Unit price</th><th class="num">Amount</th></tr></thead><tbody>${inv.items.map((item) => `<tr><td>${escapeHtml(item.description)}</td><td class="num">${escapeHtml(item.quantity)}</td><td class="num">${money(item.unitPrice)}</td><td class="num">${money(item.amount)}</td></tr>`).join("")}</tbody></table><section class="after-items"><div><h2 class="section-title">Payments received</h2>${inv.payments.length ? `<table class="payment-list"><tbody>${inv.payments.map((payment) => `<tr><td>${escapeHtml(payment.method.replaceAll("_", " "))}${payment.reference ? ` · ${escapeHtml(payment.reference)}` : ""}<br><span>${escapeHtml(formatDate(payment.receivedAt))}</span></td><td>${money(payment.amount)}</td></tr>`).join("")}</tbody></table>` : '<p class="payment-note">No payments have been recorded.</p>'}</div><div class="totals"><div class="total-row"><span>Total charges</span><strong>${money(inv.total)}</strong></div><div class="total-row"><span>Payments received</span><strong>− ${money(inv.paid)}</strong></div><div class="balance"><span>${Number(inv.balance) > 0 ? "Balance due" : "Balance"}</span><strong>${money(inv.balance)}</strong></div></div></section><footer class="footer"><span><strong>${escapeHtml(inv.hotel)}</strong> · Thank you for your stay.</span><span>Printed ${escapeHtml(printDate)}</span></footer></main><script>window.print()</script></body></html>`);
+        w.document.close();
+      }
+    } catch (e) {
+      flash(e instanceof Error ? e.message : "Unable to create invoice");
+    }
+  }
+  return (
+    <Modal
+      title={`Guest folio · ${stay.folio.folioNumber}`}
+      subtitle={`${guestName(stay.guest)} · Room ${stay.room.number}`}
+      onClose={onClose}
+      wide
+    >
+      <div className="folio-body">
+        {!folio ? (
+          <Loading />
+        ) : (
+          <>
+            <div className="folio-summary">
+              <Metric label="Charges" value={money(charge)} />
+              <Metric label="Paid" value={money(paid)} />
+              <Metric label="Balance due" value={money(charge - paid)} />
+            </div>
+            {editingItem && (
+              <EditChargeCard
+                folioId={folio.id}
+                item={editingItem}
+                onSave={record}
+                onCancel={() => setEditingItem(null)}
+              />
+            )}
+            {removingItem && (
+              <RemoveChargeCard
+                folioId={folio.id}
+                item={removingItem}
+                onSave={record}
+                onCancel={() => setRemovingItem(null)}
+              />
+            )}
+            {activeCard === "add_charge" && (
+              <AddChargeCard
+                folioId={folio.id}
+                onSave={record}
+                onCancel={() => setActiveCard("none")}
+              />
+            )}
+            {activeCard === "record_payment" && (
+              <RecordPaymentCard
+                folioId={folio.id}
+                balanceDue={Math.max(0, charge - paid)}
+                onSave={record}
+                onCancel={() => setActiveCard("none")}
+              />
+            )}
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Description</th>
+                    <th>Qty</th>
+                    <th>Price</th>
+                    <th>Amount</th>
+                    {folio.status === "OPEN" && <th>Actions</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {folio.items.map((i: any) => (
+                    <tr key={i.id}>
+                      <td>{i.description}</td>
+                      <td>{Number(i.quantity)}</td>
+                      <td>{money(i.unitPrice)}</td>
+                      <td>{money(i.amount)}</td>
+                      {folio.status === "OPEN" && (
+                        <td>
+                          <button
+                            className="small-button"
+                            onClick={() => {
+                              setRemovingItem(null);
+                              setActiveCard("none");
+                              setEditingItem(i);
+                            }}
+                          >
+                            Edit
+                          </button>{" "}
+                          <button
+                            className="small-button"
+                            onClick={() => {
+                              setEditingItem(null);
+                              setActiveCard("none");
+                              setRemovingItem(i);
+                            }}
+                          >
+                            Remove
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <SectionHeading title="Payments" />
+            {folio.payments.map((p: any) => (
+              <div className="payment-row" key={p.id}>
+                <span>
+                  {statusLabels[p.method] ?? p.method.replace("_", " ")}
+                  {p.reference ? ` · ${p.reference}` : ""}
+                </span>
+                <strong>{money(p.amount)}</strong>
+              </div>
+            ))}
+            <div className="folio-actions">
+              {folio.status === "OPEN" && (
+                <>
+                  <button
+                    className="secondary-button"
+                    onClick={() => {
+                      setEditingItem(null);
+                      setRemovingItem(null);
+                      setActiveCard(
+                        activeCard === "add_charge" ? "none" : "add_charge",
+                      );
+                    }}
+                  >
+                    <Plus size={15} /> Add charge
+                  </button>
+                  <button
+                    className="secondary-button"
+                    disabled={charge <= paid}
+                    onClick={() => {
+                      setEditingItem(null);
+                      setRemovingItem(null);
+                      setActiveCard(
+                        activeCard === "record_payment"
+                          ? "none"
+                          : "record_payment",
+                      );
+                    }}
+                  >
+                    <CreditCard size={15} /> Record payment
+                  </button>
+                </>
+              )}
+              <button className="primary-button" onClick={printInvoice}>
+                <FileText size={15} /> Print invoice
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
+function AddChargeCard({
+  folioId,
+  onSave,
+  onCancel,
+}: {
+  folioId: string;
+  onSave: (action: () => Promise<unknown>, message: string) => Promise<void>;
+  onCancel: () => void;
+}) {
+  const [desc, setDesc] = useState("");
+  const [type, setType] = useState<"EXTRA" | "TAX" | "DISCOUNT">("EXTRA");
+  const [qty, setQty] = useState(1);
+  const [price, setPrice] = useState<number | "">("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const total =
+    (Number(price) || 0) * (Number(qty) || 1) * (type === "DISCOUNT" ? -1 : 1);
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+
+    if (!desc.trim()) {
+      setError("Enter a description for this charge");
+      return;
+    }
+
+    if (price === "" || isNaN(Number(price))) {
+      setError("Enter a valid unit price");
+      return;
+    }
+
+    setBusy(true);
+    setError("");
+
+    try {
+      await onSave(async () => {
+        await post(`/billing/folio/${folioId}/items`, {
+          description: desc.trim(),
+          unitPrice: Number(price),
+          quantity: Number(qty) || 1,
+          type,
+        });
+      }, "Charge added to folio");
+      onCancel();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not add charge");
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card className="folio-action-card">
+      <SectionHeading
+        title="Add charge to folio"
+        meta="Post extra services, room amenities or taxes"
+      />
+      <form onSubmit={submit}>
+        <div className="form-grid">
+          <Field label="Description">
+            <input
+              placeholder="e.g. Breakfast buffet, laundry, airport transfer"
+              required
+              value={desc}
+              onChange={(e) => setDesc(e.target.value)}
+              autoFocus
+            />
+          </Field>
+          <Field label="Charge category">
+            <select
+              value={type}
+              onChange={(e) => setType(e.target.value as any)}
+            >
+              <option value="EXTRA">Extra service</option>
+              <option value="TAX">Tax charge</option>
+              <option value="DISCOUNT">Discount adjustment</option>
+            </select>
+          </Field>
+          <Field label="Quantity">
+            <input
+              type="number"
+              min="1"
+              step="1"
+              value={qty}
+              onChange={(e) => setQty(Math.max(1, Number(e.target.value)))}
+              required
+            />
+          </Field>
+          <Field label="Unit price">
+            <input
+              type="number"
+              step="0.01"
+              placeholder="0.00"
+              value={price}
+              onChange={(e) =>
+                setPrice(e.target.value === "" ? "" : Number(e.target.value))
+              }
+              required
+            />
+          </Field>
+          <div className="wide-field">
+            <div className="total-preview">
+              <span>Estimated item total</span>
+              <strong>{money(total)}</strong>
+            </div>
+          </div>
+        </div>
+        {error && (
+          <div className="form-error" style={{ marginTop: 10 }}>
+            {error}
+          </div>
+        )}
+        <div className="card-actions">
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={onCancel}
+            disabled={busy}
+          >
+            Cancel
+          </button>
+          <button type="submit" className="primary-button" disabled={busy}>
+            <Check size={15} />
+            {busy ? "Adding…" : "Add charge"}
+          </button>
+        </div>
+      </form>
+    </Card>
+  );
+}
+
+function RecordPaymentCard({
+  folioId,
+  balanceDue,
+  onSave,
+  onCancel,
+}: {
+  folioId: string;
+  balanceDue: number;
+  onSave: (action: () => Promise<unknown>, message: string) => Promise<void>;
+  onCancel: () => void;
+}) {
+  const [amount, setAmount] = useState<number | "">(
+    balanceDue > 0 ? balanceDue : "",
+  );
+  const [method, setMethod] = useState<
+    "CASH" | "COOPAY_EBIRR" | "EBIRR_KAAFI" | "CBE_BANK" | "OTHER"
+  >("CASH");
+  const [reference, setReference] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+
+    const num = Number(amount);
+    if (!num || num <= 0) {
+      setError("Enter a payment amount greater than zero");
+      return;
+    }
+
+    if (num > balanceDue) {
+      setError(
+        `Payment cannot exceed outstanding balance of ${money(balanceDue)}`,
+      );
+      return;
+    }
+
+    setBusy(true);
+    setError("");
+
+    try {
+      await onSave(async () => {
+        await post(`/billing/folio/${folioId}/payments`, {
+          amount: num,
+          method,
+          reference: reference.trim() || undefined,
+        });
+      }, "Payment recorded");
+      onCancel();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not record payment");
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card className="folio-action-card">
+      <SectionHeading
+        title="Record payment"
+        meta={`Outstanding balance due: ${money(balanceDue)}`}
+      />
+      <form onSubmit={submit}>
+        <div className="form-grid">
+          <Field label="Payment amount">
+            <input
+              type="number"
+              step="0.01"
+              min="0.01"
+              max={balanceDue}
+              value={amount}
+              onChange={(e) =>
+                setAmount(e.target.value === "" ? "" : Number(e.target.value))
+              }
+              required
+              autoFocus
+            />
+          </Field>
+          <Field label="Payment method">
+            <select
+              value={method}
+              onChange={(e) => setMethod(e.target.value as any)}
+            >
+              <option value="CASH">Cash</option>
+              <option value="COOPAY_EBIRR">Coopay Ebirr</option>
+              <option value="EBIRR_KAAFI">Ebirr Kaafi</option>
+              <option value="CBE_BANK">CBE Bank</option>
+              <option value="OTHER">Other</option>
+            </select>
+          </Field>
+          <Field label="Reference / notes (optional)">
+            <input
+              placeholder="e.g. Receipt #, transaction code"
+              value={reference}
+              onChange={(e) => setReference(e.target.value)}
+            />
+          </Field>
+        </div>
+        {error && (
+          <div className="form-error" style={{ marginTop: 10 }}>
+            {error}
+          </div>
+        )}
+        <div className="card-actions">
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={onCancel}
+            disabled={busy}
+          >
+            Cancel
+          </button>
+          <button type="submit" className="primary-button" disabled={busy}>
+            <CreditCard size={15} />
+            {busy ? "Recording…" : "Record payment"}
+          </button>
+        </div>
+      </form>
+    </Card>
+  );
+}
+
+function EditChargeCard({
+  folioId,
+  item,
+  onSave,
+  onCancel,
+}: {
+  folioId: string;
+  item: any;
+  onSave: (a: () => Promise<unknown>, msg: string) => Promise<void>;
+  onCancel: () => void;
+}) {
+  const [description, setDescription] = useState(item.description);
+  const [quantity, setQuantity] = useState<number>(Number(item.quantity) || 1);
+  const [unitPrice, setUnitPrice] = useState<number>(
+    Number(item.unitPrice) || 0,
+  );
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    if (!description.trim()) {
+      setError("Enter a description");
+      return;
+    }
+    if (!quantity || quantity <= 0) {
+      setError("Quantity must be at least 1");
+      return;
+    }
+    if (isNaN(unitPrice)) {
+      setError("Enter a valid price");
+      return;
+    }
+
+    setBusy(true);
+    setError("");
+    try {
+      await onSave(async () => {
+        await patch(`/billing/folio/${folioId}/items/${item.id}`, {
+          description: description.trim(),
+          quantity: Number(quantity),
+          unitPrice: Number(unitPrice),
+        });
+      }, "Charge updated");
+      onCancel();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not update charge");
+      setBusy(false);
+    }
+  }
+  return (
+    <Card className="folio-action-card">
+      <SectionHeading
+        title={`Edit charge · ${item.description}`}
+        meta="Update item description, quantity, or unit price"
+      />
+      <form onSubmit={submit}>
+        <div className="form-grid">
+          <Field label="Description">
+            <input
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              required
+              autoFocus
+            />
+          </Field>
+          <Field label="Quantity">
+            <input
+              type="number"
+              min="1"
+              value={quantity}
+              onChange={(e) => setQuantity(Number(e.target.value))}
+              required
+            />
+          </Field>
+          <Field label="Unit price">
+            <input
+              type="number"
+              step="0.01"
+              value={unitPrice}
+              onChange={(e) => setUnitPrice(Number(e.target.value))}
+              required
+            />
+          </Field>
+          <div className="wide-field">
+            <div className="total-preview">
+              <span>Updated total</span>
+              <strong>{money(quantity * unitPrice)}</strong>
+            </div>
+          </div>
+        </div>
+        {error && (
+          <div className="form-error" style={{ marginTop: 10 }}>
+            {error}
+          </div>
+        )}
+        <div className="card-actions">
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={onCancel}
+            disabled={busy}
+          >
+            Cancel
+          </button>
+          <button type="submit" className="primary-button" disabled={busy}>
+            <Check size={15} />
+            {busy ? "Saving…" : "Save changes"}
+          </button>
+        </div>
+      </form>
+    </Card>
+  );
+}
+
+function RemoveChargeCard({
+  folioId,
+  item,
+  onSave,
+  onCancel,
+}: {
+  folioId: string;
+  item: any;
+  onSave: (action: () => Promise<unknown>, message: string) => Promise<void>;
+  onCancel: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function confirmRemove() {
+    setBusy(true);
+    setError("");
+    try {
+      await onSave(async () => {
+        await api(`/billing/folio/${folioId}/items/${item.id}`, {
+          method: "DELETE",
+        });
+      }, "Charge removed");
+      onCancel();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not remove charge");
+      setBusy(false);
+    }
+  }
+  return (
+    <Card className="folio-action-card danger-card">
+      <SectionHeading
+        title="Remove charge item"
+        meta="Deduct this charge from the guest folio"
+      />
+      <div className="card-notice danger">
+        Are you sure you want to remove <strong>“{item.description}”</strong> (
+        {money(item.amount)}) from this folio?
+      </div>
+      {error && (
+        <div className="form-error" style={{ marginTop: 10 }}>
+          {error}
+        </div>
+      )}
+      <div className="card-actions">
+        <button
+          type="button"
+          className="secondary-button"
+          onClick={onCancel}
+          disabled={busy}
+        >
+          Keep item
+        </button>
+        <button
+          type="button"
+          className="primary-button danger-button"
+          onClick={confirmRemove}
+          disabled={busy}
+        >
+          <Trash2 size={15} />
+          {busy ? "Removing…" : "Remove charge"}
+        </button>
+      </div>
+    </Card>
+  );
+}
+
+function ReportsPage({
+  flash,
+  role,
+}: {
+  flash: (s: string) => void;
+  role: string;
+}) {
+  const canSeeInsights = ["ADMIN", "MANAGER"].includes(role);
+  const canSeeFinancials = ["ADMIN", "MANAGER", "RECEPTIONIST"].includes(role);
+  const canClose = canSeeInsights;
+  const { data: insights, loading } = useLoad<any>(
+    canSeeInsights ? "/reports/guest-insights" : null,
+  );
+  const [dates, setDates] = useState({
+    from: today().slice(0, 7) + "-01",
+    to: today(),
+  });
+  const [revenue, setRevenue] = useState<any>(null);
+  const [busy, setBusy] = useState(false);
+  const run = async () => {
+    setBusy(true);
+    try {
+      setRevenue(
+        await api(`/reports/revenue?from=${dates.from}&to=${dates.to}`),
+      );
+    } catch (e) {
+      flash(e instanceof Error ? e.message : "Could not load report");
+    } finally {
+      setBusy(false);
+    }
+  };
+  useEffect(() => {
+    void run();
+  }, []);
+  const close = async () => {
+    try {
+      const report = await post<any>("/reports/daily-close", {
+        businessDate: today(),
+      });
+      flash(
+        report.alreadyClosed
+          ? `Daily close already saved · payments ${money(report.paymentsTotal)}`
+          : `Daily close saved · payments ${money(report.paymentsTotal)}`,
+      );
+    } catch (e) {
+      flash(e instanceof Error ? e.message : "Unable to close day");
+    }
+  };
+  return (
+    <>
+      <PageTitle
+        eyebrow="INSIGHTS"
+        title="Reports"
+        subtitle="Revenue, occupancy trends and guest insights."
+        action={
+          canClose ? (
+            <button className="secondary-button" onClick={close}>
+              <Check size={16} /> Close today
+            </button>
+          ) : undefined
+        }
+      />
+      <Card className="revenue-card">
+        <SectionHeading
+          title="Revenue & occupancy"
+          meta="Based on posted charges and stays"
+        />
+        <div className="report-filters">
+          <Field label="From">
+            <input
+              type="date"
+              value={dates.from}
+              onChange={(e) => setDates({ ...dates, from: e.target.value })}
+            />
+          </Field>
+          <Field label="To">
+            <input
+              type="date"
+              value={dates.to}
+              onChange={(e) => setDates({ ...dates, to: e.target.value })}
+            />
+          </Field>
+          <button className="primary-button" onClick={run} disabled={busy}>
+            {busy ? "Loading…" : "Run report"}
+          </button>
+        </div>
+        {revenue && (
+          <>
+            <div className="report-metrics">
+              <Metric label="Room revenue" value={money(revenue.roomRevenue)} />
+              <Metric
+                label="Extras & adjustments"
+                value={money(revenue.otherRevenue)}
+              />
+              <Metric
+                label="Payments received"
+                value={money(revenue.payments)}
+              />
+              <Metric
+                label="Occupied room nights"
+                value={revenue.occupiedNights}
+              />
+              <Metric
+                label="Occupancy"
+                value={`${revenue.occupancyPercent}%`}
+              />
+            </div>
+            <div className="payment-method-cards">
+              <Metric
+                label="Cash received"
+                value={money(revenue.paymentBreakdown?.CASH)}
+              />
+              <Metric
+                label="Coopay Ebirr"
+                value={money(revenue.paymentBreakdown?.COOPAY_EBIRR)}
+              />
+              <Metric
+                label="Ebirr Kaafi"
+                value={money(revenue.paymentBreakdown?.EBIRR_KAAFI)}
+              />
+              <Metric
+                label="CBE Bank"
+                value={money(revenue.paymentBreakdown?.CBE_BANK)}
+              />
+              <Metric
+                label="Other"
+                value={money(revenue.paymentBreakdown?.OTHER)}
+              />
+            </div>
+          </>
+        )}
+      </Card>
+      {canSeeFinancials && <MonthlyFinancialReport />}{" "}
+      {canSeeInsights &&
+        (loading ? (
+          <Loading />
+        ) : (
+          insights && (
+            <>
+              <div className="report-columns">
+                <GuestRank
+                  title="Top guests · stays"
+                  items={insights.topByStays}
+                  value="totalStays"
+                  unit="stays"
+                />
+                <GuestRank
+                  title="Top guests · nights"
+                  items={insights.topByNights}
+                  value="totalNights"
+                  unit="nights"
+                />
+                <GuestRank
+                  title="Top guests · revenue"
+                  items={insights.topByRevenue}
+                  value="totalSpent"
+                  unit="spent"
+                />
+              </div>
+              <Card className="repeat-card">
+                <SectionHeading
+                  title="Most recent repeat guests"
+                  meta={`${insights.repeatGuests.length} guests with 2+ stays`}
+                />
+                {insights.recentRepeatGuests.length ? (
+                  <div className="table-wrap">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Guest</th>
+                          <th>Stays</th>
+                          <th>Nights</th>
+                          <th>Total spent</th>
+                          <th>Last stay</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {insights.recentRepeatGuests.map((g: any) => (
+                          <tr key={g.id}>
+                            <td>
+                              <strong>{g.name}</strong>
+                              <small>{g.phone ?? ""}</small>
+                            </td>
+                            <td>{g.totalStays}</td>
+                            <td>{g.totalNights}</td>
+                            <td>{money(g.totalSpent)}</td>
+                            <td>{dateLabel(g.lastStayDate)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <Empty
+                    title="No repeat stays yet"
+                    copy="Guests returning for a second stay will be listed here."
+                  />
+                )}
+              </Card>
+            </>
+          )
+        ))}
+    </>
+  );
+}
+
+const expenseCategories = [
+  "UTILITIES",
+  "SUPPLIES",
+  "MAINTENANCE",
+  "FOOD",
+  "TRANSPORT",
+  "SALARIES",
+  "TAXES",
+  "OTHER",
+];
+const expenseCategoryLabel = (category: string) =>
+  category.charAt(0) + category.slice(1).toLowerCase().replaceAll("_", " ");
+const paymentMethodOptions = [
+  "CASH",
+  "COOPAY_EBIRR",
+  "EBIRR_KAAFI",
+  "CBE_BANK",
+  "OTHER",
+  "MOBILE_MONEY",
+  "CARD",
+  "BANK_TRANSFER",
+];
+
+function ExpensesPage({
+  flash,
+  canManage,
+}: {
+  flash: (s: string) => void;
+  canManage: boolean;
+}) {
+  const [range, setRange] = useState({
+    from: `${today().slice(0, 7)}-01`,
+    to: today(),
+  });
+  const path = `/expenses?from=${range.from}&to=${range.to}`;
+  const {
+    data: expenses,
+    loading,
+    error,
+    reload,
+  } = useLoad<Expense[]>(path, [range.from, range.to]);
+  const [editing, setEditing] = useState<Expense | null | false>(false);
+  const [voiding, setVoiding] = useState<Expense | null>(null);
+  const activeExpenses = expenses?.filter((e) => !e.voidedAt) ?? [];
+  const total = activeExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
+  async function save(values: Record<string, unknown>) {
+    try {
+      if (editing) await patch(`/expenses/${editing.id}`, values);
+      else await post("/expenses", values);
+      setEditing(false);
+      flash(editing ? "Expense updated" : "Expense recorded");
+      reload();
+    } catch (e) {
+      flash(e instanceof Error ? e.message : "Could not save expense");
+      throw e;
+    }
+  }
+  async function voidExpense(expense: Expense, reason: string) {
+    try {
+      await post(`/expenses/${expense.id}/void`, { reason });
+      setVoiding(null);
+      flash("Expense voided");
+      reload();
+    } catch (e) {
+      flash(e instanceof Error ? e.message : "Could not void expense");
+      throw e;
+    }
+  }
+  return (
+    <>
+      <PageTitle
+        eyebrow="FINANCES"
+        title="Expenses"
+        subtitle="Record and review hotel expenses."
+        action={
+          <button className="primary-button" onClick={() => setEditing(null)}>
+            <Plus size={16} /> Record expense
+          </button>
+        }
+      />
+      <Card className="expense-summary-card">
+        <div className="expense-range">
+          <Field label="From">
+            <input
+              type="date"
+              value={range.from}
+              onChange={(e) => setRange({ ...range, from: e.target.value })}
+            />
+          </Field>
+          <Field label="To">
+            <input
+              type="date"
+              value={range.to}
+              onChange={(e) => setRange({ ...range, to: e.target.value })}
+            />
+          </Field>
+        </div>
+        <div className="report-metrics">
+          <Metric label="Expenses in period" value={money(total)} />
+          <Metric
+            label="Active expense records"
+            value={activeExpenses.length}
+          />
+        </div>
+      </Card>
+      <Card className="expense-list-card">
+        <SectionHeading
+          title="Expense records"
+          meta="Voided records remain visible and are excluded from totals"
+        />
+        {loading ? (
+          <Loading />
+        ) : !expenses ? (
+          <ErrorPanel message={error} />
+        ) : expenses.length ? (
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Category</th>
+                  <th>Description</th>
+                  <th>Paid to</th>
+                  <th>Payment method</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                  {canManage && <th>Actions</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {expenses.map((expense) => (
+                  <tr
+                    key={expense.id}
+                    className={expense.voidedAt ? "expense-voided" : ""}
+                  >
+                    <td>
+                      {dateLabel(expense.expenseDate, {
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </td>
+                    <td>{expenseCategoryLabel(expense.category)}</td>
+                    <td>
+                      <strong>{expense.description}</strong>
+                      {expense.reference && (
+                        <small>Ref. {expense.reference}</small>
+                      )}
+                      {expense.voidReason && (
+                        <small>Void reason: {expense.voidReason}</small>
+                      )}
+                    </td>
+                    <td>{expense.payee || "—"}</td>
+                    <td>
+                      {statusLabels[expense.paymentMethod] ??
+                        expense.paymentMethod.replaceAll("_", " ")}
+                    </td>
+                    <td>{money(expense.amount)}</td>
+                    <td>
+                      {expense.voidedAt ? (
+                        <span className="badge badge-cancelled">Voided</span>
+                      ) : (
+                        <span className="badge badge-done">Recorded</span>
+                      )}
+                    </td>
+                    {canManage && (
+                      <td>
+                        {!expense.voidedAt && (
+                          <div className="expense-actions">
+                            <button
+                              className="small-button"
+                              onClick={() => setEditing(expense)}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              className="small-button danger-text-button"
+                              onClick={() => setVoiding(expense)}
+                            >
+                              Void
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <Empty
+            title="No expenses for these dates"
+            copy="Record an expense or choose a wider date range."
+          />
+        )}
+      </Card>
+      {editing !== false && (
+        <ExpenseModal
+          expense={editing || undefined}
+          onClose={() => setEditing(false)}
+          onSave={save}
+        />
+      )}{" "}
+      {voiding && canManage && (
+        <VoidExpenseModal
+          expense={voiding}
+          onClose={() => setVoiding(null)}
+          onVoid={voidExpense}
+        />
+      )}
+    </>
+  );
+}
+
+function ExpenseModal({
+  expense,
+  onClose,
+  onSave,
+}: {
+  expense?: Expense;
+  onClose: () => void;
+  onSave: (values: Record<string, unknown>) => Promise<void>;
+}) {
+  const [category, setCategory] = useState(expense?.category ?? "UTILITIES"),
+    [description, setDescription] = useState(expense?.description ?? ""),
+    [payee, setPayee] = useState(expense?.payee ?? ""),
+    [amount, setAmount] = useState(expense ? String(expense.amount) : ""),
+    [method, setMethod] = useState(expense?.paymentMethod ?? "CASH"),
+    [reference, setReference] = useState(expense?.reference ?? ""),
+    [notes, setNotes] = useState(expense?.notes ?? ""),
+    [expenseDate, setExpenseDate] = useState(
+      expense?.expenseDate.slice(0, 10) ?? today(),
+    ),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState("");
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      await onSave({
+        category,
+        description: description.trim(),
+        payee: payee.trim() || null,
+        amount: Number(amount),
+        paymentMethod: method,
+        reference: reference.trim() || null,
+        notes: notes.trim() || null,
+        expenseDate,
+      });
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not save expense");
+      setBusy(false);
+    }
+  }
+  return (
+    <Modal
+      title={expense ? "Edit expense" : "Record an expense"}
+      subtitle="Enter the amount paid and the date it was paid."
+      onClose={onClose}
+    >
+      <form className="modal-form" onSubmit={submit}>
+        <div className="form-grid">
+          <Field label="Date paid">
+            <input
+              type="date"
+              required
+              value={expenseDate}
+              onChange={(e) => setExpenseDate(e.target.value)}
+            />
+          </Field>
+          <Field label="Category">
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+            >
+              {expenseCategories.map((c) => (
+                <option key={c} value={c}>
+                  {expenseCategoryLabel(c)}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Description">
+            <input
+              required
+              maxLength={300}
+              placeholder="e.g. Electricity bill"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
+          </Field>
+          <Field label="Amount">
+            <input
+              type="number"
+              min="0.01"
+              step="0.01"
+              required
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+            />
+          </Field>
+          <Field label="Payment method">
+            <select value={method} onChange={(e) => setMethod(e.target.value)}>
+              {paymentMethodOptions.map((m) => (
+                <option key={m} value={m}>
+                  {statusLabels[m] ?? m.replaceAll("_", " ")}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Paid to (optional)">
+            <input
+              maxLength={120}
+              value={payee}
+              onChange={(e) => setPayee(e.target.value)}
+            />
+          </Field>
+          <Field label="Reference (optional)">
+            <input
+              maxLength={120}
+              value={reference}
+              onChange={(e) => setReference(e.target.value)}
+            />
+          </Field>
+          <Field label="Notes (optional)" className="wide-field">
+            <textarea
+              rows={3}
+              maxLength={1000}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+            />
+          </Field>
+        </div>
+        {error && <div className="form-error">{error}</div>}
+        <div className="modal-actions">
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={onClose}
+            disabled={busy}
+          >
+            Cancel
+          </button>
+          <button className="primary-button" disabled={busy}>
+            <Check size={15} />
+            {busy ? "Saving…" : expense ? "Save changes" : "Record expense"}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function VoidExpenseModal({
+  expense,
+  onClose,
+  onVoid,
+}: {
+  expense: Expense;
+  onClose: () => void;
+  onVoid: (expense: Expense, reason: string) => Promise<void>;
+}) {
+  const [reason, setReason] = useState(""),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState("");
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      await onVoid(expense, reason.trim());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not void expense");
+      setBusy(false);
+    }
+  }
+  return (
+    <Modal
+      title="Void expense"
+      subtitle={`${expenseCategoryLabel(expense.category)} · ${money(expense.amount)}`}
+      onClose={onClose}
+    >
+      <form className="modal-form" onSubmit={submit}>
+        <div className="card-notice warning">
+          <strong>This expense will be excluded from reports.</strong>The entry
+          remains in the audit history.
+        </div>
+        <Field label="Reason for voiding">
+          <textarea
+            rows={3}
+            minLength={3}
+            maxLength={500}
+            required
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+          />
+        </Field>
+        {error && <div className="form-error">{error}</div>}
+        <div className="modal-actions">
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={onClose}
+            disabled={busy}
+          >
+            Cancel
+          </button>
+          <button className="primary-button danger-button" disabled={busy}>
+            <Trash2 size={15} />
+            {busy ? "Voiding…" : "Confirm void"}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function MonthlyFinancialReport() {
+  const [month, setMonth] = useState(today().slice(0, 7));
+  const [showAllDaily, setShowAllDaily] = useState(false);
+  const from = `${month}-01`,
+    to = new Date(
+      Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0),
+    )
+      .toISOString()
+      .slice(0, 10);
+  const { data, loading, error } = useLoad<any>(
+    `/reports/financial-summary?from=${from}&to=${to}`,
+    [month],
+  );
+  const { data: expenseRecords, loading: expensesLoading } = useLoad<Expense[]>(
+    `/expenses?from=${from}&to=${to}`,
+    [month],
+  );
+  const monthLabel = new Date(`${month}-15T12:00:00`).toLocaleDateString(
+    undefined,
+    { month: "long", year: "numeric" },
+  );
+  const dailyRows = (data?.daily ?? []).filter(
+    (row: any) => row.date <= today(),
+  );
+  const visibleDailyRows = showAllDaily
+    ? [...dailyRows].reverse()
+    : [...dailyRows].reverse().slice(0, 7);
+  useEffect(() => setShowAllDaily(false), [month]);
+  return (
+    <Card className="monthly-financial-card">
+      <SectionHeading
+        title="Monthly income and expenses"
+        meta="Net cash is payments received minus expenses paid"
+        action={
+          <div className="month-picker">
+            <button
+              className="icon-button"
+              aria-label="Previous month"
+              onClick={() => setMonth(shiftMonth(month, -1))}
+            >
+              <ChevronLeft size={17} />
+            </button>
+            <input
+              type="month"
+              value={month}
+              onChange={(e) => setMonth(e.target.value)}
+            />
+            <button
+              className="icon-button"
+              aria-label="Next month"
+              onClick={() => setMonth(shiftMonth(month, 1))}
+            >
+              <ChevronRight size={17} />
+            </button>
+          </div>
+        }
+      />
+      {loading ? (
+        <Loading />
+      ) : !data ? (
+        <ErrorPanel message={error} />
+      ) : (
+        <>
+          <div className="financial-month-label">{monthLabel}</div>
+          <div className="report-metrics financial-summary-metrics">
+            <Metric
+              label="Payments received"
+              value={money(data.paymentsTotal)}
+            />
+            <Metric label="Expenses paid" value={money(data.expensesTotal)} />
+            <Metric label="Net cash" value={money(data.netCash)} />
+            <Metric
+              label="Room charges posted"
+              value={money(data.roomRevenue)}
+            />
+            <Metric
+              label="Other charges posted"
+              value={money(data.otherRevenue)}
+            />
+          </div>
+          <div className="financial-breakdowns">
+            <div>
+              <SectionHeading title="Received by payment method" />
+              {paymentMethodOptions.map((method) => (
+                <div className="financial-breakdown-row" key={method}>
+                  <span>{statusLabels[method] ?? method}</span>
+                  <strong>{money(data.paymentBreakdown?.[method])}</strong>
+                </div>
+              ))}
+            </div>
+            <div>
+              <SectionHeading title="Expenses by category" />
+              {expenseCategories.map((category) => (
+                <div className="financial-breakdown-row" key={category}>
+                  <span>{expenseCategoryLabel(category)}</span>
+                  <strong>{money(data.expensesByCategory?.[category])}</strong>
+                </div>
+              ))}
+            </div>
+          </div>
+          <SectionHeading
+            title="Daily summary"
+            meta={`${dailyRows.length} days in ${monthLabel}`}
+          />
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Payments received</th>
+                  <th>Expenses</th>
+                  <th>Net cash</th>
+                  <th>Room charges</th>
+                  <th>Other charges</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visibleDailyRows.map((row: any) => (
+                  <tr key={row.date}>
+                    <td>
+                      {dateLabel(row.date, {
+                        weekday: "short",
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </td>
+                    <td>{money(row.payments)}</td>
+                    <td>{money(row.expenses)}</td>
+                    <td
+                      className={
+                        row.netCash < 0 ? "negative-amount" : "positive-amount"
+                      }
+                    >
+                      {money(row.netCash)}
+                    </td>
+                    <td>{money(row.roomCharges)}</td>
+                    <td>{money(row.otherCharges)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {dailyRows.length > 7 && (
+            <div className="table-expand">
+              <button
+                className="text-button"
+                onClick={() => setShowAllDaily((value) => !value)}
+              >
+                {showAllDaily
+                  ? "Show less"
+                  : "Read more (" + (dailyRows.length - 7) + " days)"}
+              </button>
+            </div>
+          )}
+          <SectionHeading
+            title="Expense details"
+            meta={`${expenseRecords?.filter((expense) => !expense.voidedAt).length ?? 0} recorded expenses`}
+          />
+          {expensesLoading ? (
+            <Loading />
+          ) : expenseRecords?.filter((expense) => !expense.voidedAt).length ? (
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Category</th>
+                    <th>Description</th>
+                    <th>Paid to</th>
+                    <th>Payment method</th>
+                    <th>Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {expenseRecords
+                    .filter((expense) => !expense.voidedAt)
+                    .map((expense) => (
+                      <tr key={expense.id}>
+                        <td>
+                          {dateLabel(expense.expenseDate, {
+                            month: "short",
+                            day: "numeric",
+                          })}
+                        </td>
+                        <td>{expenseCategoryLabel(expense.category)}</td>
+                        <td>{expense.description}</td>
+                        <td>{expense.payee || "—"}</td>
+                        <td>
+                          {statusLabels[expense.paymentMethod] ??
+                            expense.paymentMethod}
+                        </td>
+                        <td>{money(expense.amount)}</td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <Empty
+              title="No recorded expenses this month"
+              copy="The monthly expense total is zero."
+            />
+          )}
+        </>
+      )}
+    </Card>
+  );
+}
+function GuestRank({
+  title,
+  items,
+  value,
+  unit,
+}: {
+  title: string;
+  items: any[];
+  value: string;
+  unit: string;
+}) {
+  return (
+    <Card className="rank-card">
+      <SectionHeading title={title} />
+      {items.length ? (
+        items.slice(0, 5).map((g, i) => (
+          <div className="rank-row" key={g.id}>
+            <span className={`rank-number ${i === 0 ? "rank-first" : ""}`}>
+              {String(i + 1).padStart(2, "0")}
+            </span>
+            <div>
+              <strong>{g.name}</strong>
+              <small>
+                {g.totalStays} stays · last {dateLabel(g.lastStayDate)}
+              </small>
+            </div>
+            <b>
+              {value === "totalSpent" ? money(g[value]) : g[value]}
+              <small>{unit === "spent" ? "total" : unit}</small>
+            </b>
+          </div>
+        ))
+      ) : (
+        <Empty
+          title="No stays recorded"
+          copy="Guest rankings will appear once stays are completed."
+        />
+      )}
+    </Card>
+  );
+}
+
+function TeamPage({
+  flash,
+  currentUserId,
+}: {
+  flash: (s: string) => void;
+  currentUserId: string;
+}) {
+  const { data: users, loading, error, reload } = useLoad<any[]>("/users");
+  const [deletingUser, setDeletingUser] = useState<any | null>(null);
+  const [resettingUser, setResettingUser] = useState<any | null>(null);
+  async function setActive(user: any) {
+    try {
+      await patch(`/users/${user.id}`, { active: !user.active });
+      flash(`${user.name} ${user.active ? "deactivated" : "activated"}`);
+      reload();
+    } catch (e) {
+      flash(e instanceof Error ? e.message : "Could not update account");
+    }
+  }
+  return (
+    <>
+      <PageTitle
+        eyebrow="PROPERTY SETTINGS"
+        title="Team access"
+        subtitle="Activate or deactivate reception accounts and remove accounts that are no longer needed."
+        action={
+          <button
+            className="primary-button"
+            onClick={() =>
+              document
+                .getElementById("invite-staff")
+                ?.scrollIntoView({ behavior: "smooth" })
+            }
+          >
+            <Plus size={16} /> Add staff member
+          </button>
+        }
+      />
+      <Card className="table-card">
+        <SectionHeading
+          title="Staff accounts"
+          meta={`${users?.length ?? 0} accounts`}
+        />
+        {loading ? (
+          <Loading />
+        ) : !users ? (
+          <ErrorPanel message={error} />
+        ) : (
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Team member</th>
+                  <th>Email</th>
+                  <th>Role</th>
+                  <th>Status</th>
+                  <th>Account actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {users.map((u) => (
+                  <tr key={u.id}>
+                    <td>
+                      <div className="staff-name">
+                        <span className="avatar avatar-guest">
+                          {u.name.slice(0, 1)}
+                        </span>
+                        <strong>{u.name}</strong>
+                      </div>
+                    </td>
+                    <td>{u.email}</td>
+                    <td>
+                      <Badge value={u.role} />
+                      {u.role === "HOUSEKEEPING" && (
+                        <small className="account-note">
+                          Worker account · app sign-in disabled
+                        </small>
+                      )}
+                    </td>
+                    <td>
+                      <span
+                        className={`account-status ${u.active ? "is-active" : "is-inactive"}`}
+                      >
+                        {u.active ? "Active" : "Inactive"}
+                      </span>
+                    </td>
+                    <td>
+                      <div className="account-actions">
+                        {u.id !== currentUserId && (
+                          <button
+                            className="small-button"
+                            onClick={() => setResettingUser(u)}
+                          >
+                            Reset password
+                          </button>
+                        )}
+                        {u.role === "ADMIN" ? (
+                          <small>Administrator account</small>
+                        ) : (
+                          <>
+                            <button
+                              className="secondary-button"
+                              onClick={() => setActive(u)}
+                            >
+                              {u.active ? "Deactivate" : "Activate"}
+                            </button>
+                            {u.id !== currentUserId && (
+                              <button
+                                className="small-button danger-button"
+                                onClick={() => setDeletingUser(u)}
+                              >
+                                <Trash2 size={14} /> Delete
+                              </button>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+      <AdminPasswordSettings flash={flash} />
+      <AdminRecoverySettings flash={flash} />
+      <Card id="invite-staff">
+        <SectionHeading
+          title="Add staff member"
+          meta="Create staff access for reception or management"
+        />
+        <form
+          className="form-grid"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            const f = new FormData(e.currentTarget);
+            try {
+              await post("/users", {
+                name: f.get("name"),
+                email: f.get("email"),
+                password: f.get("password"),
+                role: f.get("role"),
+              });
+              (e.target as HTMLFormElement).reset();
+              flash("Staff account created");
+              reload();
+            } catch (err) {
+              flash(
+                err instanceof Error
+                  ? err.message
+                  : "Unable to create staff account",
+              );
+            }
+          }}
+        >
+          <Field label="Full name">
+            <input name="name" required />
+          </Field>
+          <Field label="Email">
+            <input name="email" type="email" required />
+          </Field>
+          <Field label="Temporary password (10+ characters)">
+            <input name="password" type="password" minLength={10} required />
+          </Field>
+          <Field label="Role">
+            <select name="role">
+              <option value="RECEPTIONIST">Receptionist</option>
+              <option value="MANAGER">Manager</option>
+              <option value="ADMIN">Admin</option>
+            </select>
+          </Field>
+          <div className="form-actions">
+            <button className="primary-button">
+              <Plus size={16} /> Create account
+            </button>
+          </div>
+        </form>
+      </Card>
+      {deletingUser && (
+        <DeleteUserModal
+          user={deletingUser}
+          onClose={() => setDeletingUser(null)}
+          onDeleted={() => {
+            setDeletingUser(null);
+            reload();
+          }}
+        />
+      )}
+      {resettingUser && (
+        <ResetStaffPasswordModal
+          user={resettingUser}
+          onClose={() => setResettingUser(null)}
+          onSaved={() => {
+            setResettingUser(null);
+            reload();
+            flash(`Password updated for ${resettingUser.name}`);
+          }}
+        />
+      )}
+    </>
+  );
+}
+function AdminPasswordSettings({
+  flash,
+}: {
+  flash: (message: string) => void;
+}) {
+  const [busy, setBusy] = useState(false),
+    [error, setError] = useState("");
+  async function save(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError("");
+    const form = e.currentTarget;
+    const values = new FormData(form);
+    const currentPassword = String(values.get("currentPassword") ?? "");
+    const newPassword = String(values.get("newPassword") ?? "");
+    if (newPassword !== String(values.get("confirmPassword") ?? "")) {
+      setError("The new passwords do not match.");
+      return;
+    }
+    if (currentPassword === newPassword) {
+      setError("Choose a password different from your current password.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const result = await post<{ message: string }>("/auth/change-password", {
+        currentPassword,
+        newPassword,
+      });
+      form.reset();
+      flash(result.message);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Could not change password",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <Card>
+      <SectionHeading
+        title="Change my password"
+        meta="Change your administrator sign-in password while you are signed in."
+      />
+      <form className="form-grid" onSubmit={save}>
+        <Field label="Current password">
+          <input
+            name="currentPassword"
+            type="password"
+            autoComplete="current-password"
+            required
+          />
+        </Field>
+        <Field label="New password (10+ characters)">
+          <input
+            name="newPassword"
+            type="password"
+            minLength={10}
+            maxLength={200}
+            autoComplete="new-password"
+            required
+          />
+        </Field>
+        <Field label="Confirm new password">
+          <input
+            name="confirmPassword"
+            type="password"
+            minLength={10}
+            maxLength={200}
+            autoComplete="new-password"
+            required
+          />
+        </Field>
+        {error && <div className="form-error">{error}</div>}
+        <div className="form-actions">
+          <button className="primary-button" disabled={busy}>
+            {busy ? "Changing…" : "Change password"}
+          </button>
+        </div>
+      </form>
+    </Card>
+  );
+}
+function ResetStaffPasswordModal({
+  user,
+  onClose,
+  onSaved,
+}: {
+  user: { id: string; name: string; email: string };
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [busy, setBusy] = useState(false),
+    [error, setError] = useState("");
+  async function submit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError("");
+    const values = new FormData(e.currentTarget);
+    const password = String(values.get("password") ?? "");
+    if (password !== String(values.get("confirmPassword") ?? "")) {
+      setError("The passwords do not match.");
+      return;
+    }
+    setBusy(true);
+    try {
+      await patch(`/users/${user.id}`, { password });
+      onSaved();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not reset password");
+      setBusy(false);
+    }
+  }
+  return (
+    <Modal
+      title="Reset staff password"
+      subtitle={`${user.name} · ${user.email}`}
+      onClose={onClose}
+    >
+      <form className="modal-form" onSubmit={submit}>
+        <Field label="New password (10+ characters)">
+          <input
+            name="password"
+            type="password"
+            minLength={10}
+            maxLength={200}
+            autoComplete="new-password"
+            required
+            autoFocus
+          />
+        </Field>
+        <Field label="Confirm new password">
+          <input
+            name="confirmPassword"
+            type="password"
+            minLength={10}
+            maxLength={200}
+            autoComplete="new-password"
+            required
+          />
+        </Field>
+        <p className="account-note">
+          Tell the staff member their new password privately.
+        </p>
+        {error && <div className="form-error">{error}</div>}
+        <div className="modal-actions">
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={onClose}
+            disabled={busy}
+          >
+            Cancel
+          </button>
+          <button className="primary-button" disabled={busy}>
+            {busy ? "Saving…" : "Reset password"}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+function AdminRecoverySettings({
+  flash,
+}: {
+  flash: (message: string) => void;
+}) {
+  const [busy, setBusy] = useState(false),
+    [error, setError] = useState("");
+  async function save(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError("");
+    const form = e.currentTarget;
+    const values = new FormData(form);
+    const recoveryPhrase = String(values.get("recoveryPhrase") ?? "");
+    if (recoveryPhrase !== String(values.get("confirmPhrase") ?? "")) {
+      setError("The recovery passphrases do not match.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const result = await post<{ message: string }>(
+        "/auth/admin/recovery-phrase",
+        { currentPassword: values.get("currentPassword"), recoveryPhrase },
+      );
+      form.reset();
+      flash(result.message);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Could not save recovery passphrase",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <Card>
+      <SectionHeading
+        title="Administrator password recovery"
+        meta="Set this once while signed in; use it if you forget your password."
+      />
+      <form className="form-grid" onSubmit={save}>
+        <Field label="Your current password">
+          <input
+            name="currentPassword"
+            type="password"
+            autoComplete="current-password"
+            required
+          />
+        </Field>
+        <Field label="Recovery passphrase (12+ characters)">
+          <input
+            name="recoveryPhrase"
+            type="password"
+            minLength={12}
+            maxLength={200}
+            autoComplete="new-password"
+            required
+          />
+        </Field>
+        <Field label="Confirm recovery passphrase">
+          <input
+            name="confirmPhrase"
+            type="password"
+            minLength={12}
+            maxLength={200}
+            autoComplete="new-password"
+            required
+          />
+        </Field>
+        {error && <div className="form-error">{error}</div>}
+        <div className="form-actions">
+          <button className="primary-button" disabled={busy}>
+            {busy ? "Saving…" : "Save recovery passphrase"}
+          </button>
+        </div>
+        <small className="account-note">
+          Keep it somewhere private. Receptionists cannot use this recovery
+          option.
+        </small>
+      </form>
+    </Card>
+  );
+}
+function DeleteUserModal({
+  user,
+  onClose,
+  onDeleted,
+}: {
+  user: any;
+  onClose: () => void;
+  onDeleted: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      await api(`/users/${user.id}`, { method: "DELETE" });
+      window.dispatchEvent(
+        new CustomEvent("hms:toast", {
+          detail: `${user.name}'s account deleted`,
+        }),
+      );
+      onDeleted();
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Could not delete staff account",
+      );
+      setBusy(false);
+    }
+  }
+  return (
+    <Modal title="Delete staff account" subtitle={user.name} onClose={onClose}>
+      <form className="modal-form" onSubmit={submit}>
+        <div className="card-notice danger">
+          <strong>Permanent account removal</strong>Are you sure you want to
+          delete <strong>{user.name}</strong> ({user.email})? This staff account
+          will lose access immediately. This action cannot be undone.
+        </div>
+        {error && <div className="form-error">{error}</div>}
+        <div className="modal-actions">
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={onClose}
+            disabled={busy}
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className="primary-button danger-button"
+            disabled={busy}
+          >
+            <Trash2 size={15} />
+            {busy ? "Deleting…" : "Delete account"}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+function RoomMovePanel({
+  flash,
+  refresh,
+}: {
+  flash: (s: string) => void;
+  refresh: () => void;
+}) {
+  const { data: stays } = useLoad<Stay[]>("/stays/in-house");
+  const { data: rooms } = useLoad<Room[]>("/rooms");
+  const [stayId, setStayId] = useState(""),
+    [roomId, setRoomId] = useState("");
+  const selected = stays?.find((x) => x.id === stayId);
+  const eligible =
+    rooms?.filter(
+      (r) =>
+        r.id !== selected?.room.id &&
+        !["OCCUPIED", "DIRTY", "OUT_OF_ORDER"].includes(r.status),
+    ) ?? [];
+  return (
+    <Card className="move-room-card">
+      <SectionHeading
+        title="Move a guest to another room"
+        meta="The previous room will be marked Dirty; higher room rates are charged for remaining nights, while the contracted rate stays for lower-rate rooms."
+      />
+      <div className="form-grid">
+        <Field label="Current guest">
+          <select
+            value={stayId}
+            onChange={(e) => {
+              setStayId(e.target.value);
+              setRoomId("");
+            }}
+          >
+            <option value="">Choose an in-house guest</option>
+            {stays?.map((s) => (
+              <option key={s.id} value={s.id}>
+                {guestName(s.guest)} · Room {s.room.number}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Destination room">
+          <select value={roomId} onChange={(e) => setRoomId(e.target.value)}>
+            <option value="">Choose an available room</option>
+            {eligible.map((r) => (
+              <option value={r.id} key={r.id}>
+                {r.number} · {r.type}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <div className="form-actions">
+          <button
+            className="primary-button"
+            disabled={!stayId || !roomId}
+            onClick={async () => {
+              try {
+                await post(`/stays/${stayId}/move-room`, {
+                  roomId,
+                  reason: "Guest room move",
+                });
+                flash("Guest moved · previous room marked Dirty");
+                setStayId("");
+                setRoomId("");
+                refresh();
+              } catch (e) {
+                flash(e instanceof Error ? e.message : "Could not move guest");
+              }
+            }}
+          >
+            <DoorOpen size={16} /> Move guest
+          </button>
+        </div>
+      </div>
+    </Card>
+  );
+}
+function DailyAuditHistory() {
+  const { data, loading, error, reload } = useLoad<any[]>(
+    "/reports/daily-audits",
+  );
+  const [expanded, setExpanded] = useState(false);
+  const visible = data ? (expanded ? data : data.slice(0, 7)) : [];
+  return (
+    <Card className="activity-card">
+      <SectionHeading
+        title="Daily close snapshots"
+        meta="Saved occupancy, revenue, expenses and payment reconciliation"
+        action={
+          <button className="small-button" onClick={reload}>
+            Refresh
+          </button>
+        }
+      />
+      {loading ? (
+        <Loading />
+      ) : !data ? (
+        <ErrorPanel message={error} />
+      ) : data.length ? (
+        <>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Business date</th>
+                  <th>Rooms occupied</th>
+                  <th>Room revenue</th>
+                  <th>ADR</th>
+                  <th>RevPAR</th>
+                  <th>Payments received</th>
+                  <th>Expenses</th>
+                  <th>Net cash</th>
+                  <th>Cash</th>
+                  <th>Coopay Ebirr</th>
+                  <th>Ebirr Kaafi</th>
+                  <th>CBE Bank</th>
+                  <th>Other</th>
+                  <th>Outstanding</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visible.map((audit: any) => (
+                  <tr key={audit.id}>
+                    <td>
+                      {dateLabel(audit.businessDate, {
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </td>
+                    <td>
+                      {audit.occupiedRooms}/{audit.openingRooms} ·{" "}
+                      {audit.openingRooms
+                        ? Math.round(
+                            (audit.occupiedRooms / audit.openingRooms) * 100,
+                          )
+                        : 0}
+                      %
+                    </td>
+                    <td>{money(audit.roomRevenue)}</td>
+                    <td>{money(audit.averageDailyRate)}</td>
+                    <td>{money(audit.revenuePerAvailableRoom)}</td>
+                    <td>{money(audit.paymentsTotal)}</td>
+                    <td>{money(audit.expensesTotal)}</td>
+                    <td
+                      className={
+                        Number(audit.netCash) < 0
+                          ? "negative-amount"
+                          : "positive-amount"
+                      }
+                    >
+                      {money(audit.netCash)}
+                    </td>
+                    <td>{money(audit.cashPayments)}</td>
+                    <td>{money(audit.coopayEbirrPayments)}</td>
+                    <td>{money(audit.ebirrKaafiPayments)}</td>
+                    <td>{money(audit.cbeBankPayments)}</td>
+                    <td>{money(audit.otherPayments)}</td>
+                    <td>{money(audit.outstandingTotal)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {data.length > 7 && (
+            <div className="table-expand">
+              <button
+                className="text-button"
+                onClick={() => setExpanded((value) => !value)}
+              >
+                {expanded
+                  ? "Show less"
+                  : "Read more (" + (data.length - 7) + " days)"}
+              </button>
+            </div>
+          )}
+        </>
+      ) : (
+        <Empty
+          title="No daily closes saved"
+          copy="A manager or administrator can save the daily close from this page."
+        />
+      )}
+    </Card>
+  );
+}
+function ActivityLog() {
+  const { data, loading, error } = useLoad<any[]>("/reports/audit-log");
+  const [expanded, setExpanded] = useState(false);
+  const [staffFilter, setStaffFilter] = useState("ALL");
+  const staffOptions = Array.from(
+    new Map<string, string>(
+      (data ?? []).map((item) => [
+        item.user?.email ?? "__SYSTEM__",
+        item.user?.name ?? "System",
+      ]),
+    ).entries(),
+  ).sort((a, b) => a[1].localeCompare(b[1]));
+  const filtered = (data ?? []).filter(
+    (item) =>
+      staffFilter === "ALL" ||
+      (staffFilter === "__SYSTEM__"
+        ? !item.user?.email
+        : item.user?.email === staffFilter),
+  );
+  const visible = expanded ? filtered : filtered.slice(0, 7);
+  return (
+    <Card className="activity-card">
+      <SectionHeading
+        title="Recent activity"
+        meta="Newest staff actions first"
+      />
+      {data && data.length > 0 && (
+        <div className="activity-filter-row">
+          <Field label="Filter by staff member">
+            <select
+              aria-label="Filter activity by staff member"
+              value={staffFilter}
+              onChange={(e) => {
+                setStaffFilter(e.target.value);
+                setExpanded(false);
+              }}
+            >
+              <option value="ALL">All staff</option>
+              {staffOptions.map(([email, name]) => (
+                <option key={email} value={email}>
+                  {email === "__SYSTEM__" ? name : name + " · " + email}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <span className="activity-filter-count">
+            {filtered.length}{" "}
+            {filtered.length === 1 ? "activity" : "activities"}
+          </span>
+        </div>
+      )}
+      {loading ? (
+        <Loading />
+      ) : !data ? (
+        <ErrorPanel message={error} />
+      ) : filtered.length ? (
+        <>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>When</th>
+                  <th>Staff member</th>
+                  <th>Action</th>
+                  <th>Record</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visible.map((item: any) => (
+                  <tr key={item.id}>
+                    <td>{new Date(item.createdAt).toLocaleString()}</td>
+                    <td>{item.user?.name ?? "System"}</td>
+                    <td>
+                      {item.action.replaceAll(".", " ").replaceAll("_", " ")}
+                    </td>
+                    <td>
+                      {item.entityType}
+                      {item.entityId ? " · " + item.entityId.slice(-7) : ""}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {filtered.length > 7 && (
+            <div className="table-expand">
+              <button
+                className="text-button"
+                onClick={() => setExpanded((value) => !value)}
+              >
+                {expanded
+                  ? "Show less"
+                  : "Read more (" + (filtered.length - 7) + " entries)"}
+              </button>
+            </div>
+          )}
+        </>
+      ) : (
+        <Empty
+          title={
+            data.length
+              ? "No activity for this staff member"
+              : "No activity recorded yet"
+          }
+          copy={
+            data.length
+              ? "Choose another staff member or select All staff."
+              : "Important room, reservation, stay and billing changes will appear here."
+          }
+        />
+      )}
+    </Card>
+  );
+}
+
+function useLoad<T>(path: string | null, deps: unknown[] = []) {
+  const [data, setData] = useState<T | null>(null),
+    [loading, setLoading] = useState(!!path),
+    [error, setError] = useState(""),
+    [tick, setTick] = useState(0);
+  const reload = useCallback(() => setTick((x) => x + 1), []);
+  useEffect(() => {
+    if (!path) {
+      setLoading(false);
+      setData(null);
+      return;
+    }
+    let live = true;
+    setLoading(true);
+    api<T>(path)
+      .then((x) => {
+        if (live) {
+          setData(x);
+          setError("");
+        }
+      })
+      .catch((e) => {
+        if (live)
+          setError(e instanceof Error ? e.message : "Unable to load data");
+      })
+      .finally(() => {
+        if (live) setLoading(false);
+      });
+    return () => {
+      live = false;
+    };
+  }, [path, tick, ...deps]);
+  return { data, loading, error, reload };
+}
+function ErrorPanel({ message }: { message: string }) {
+  return (
+    <Card>
+      <Empty
+        title="Could not load this view"
+        copy={message || "Please check your connection and try again."}
+      />
+    </Card>
+  );
+}
+function shiftDay(value: string, amount: number) {
+  const d = new Date(`${value.slice(0, 10)}T12:00:00`);
+  d.setDate(d.getDate() + amount);
+  return d.toLocaleDateString("en-CA");
+}
+function shiftMonth(value: string, amount: number) {
+  const d = new Date(`${value}-15T12:00:00`);
+  d.setMonth(d.getMonth() + amount);
+  return d.toLocaleDateString("en-CA").slice(0, 7);
+}
+function escapeHtml(value: unknown) {
+  return String(value ?? "").replace(
+    /[&<>"']/g,
+    (character) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
+        character
+      ] ?? character,
+  );
+}
