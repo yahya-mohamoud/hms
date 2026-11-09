@@ -1,4 +1,4 @@
-# Staywell Hotel Desk
+# Jiemodo INN Hotel Management System
 
 A local-first hotel operations system for a 12-room property. It covers staff-run reservations and walk-ins, room status, guest profiles, check-in/out, folios and payments, daily reporting, guest insights, staff roles, and audit activity. There is no public booking engine, OTA, channel manager, online reservation integration, or digital housekeeping workflow.
 

@@ -20,6 +20,8 @@ services:
         value: 12h
       - key: WEB_ORIGIN
         sync: false
+      - key: HOTEL_NAME
+        value: Jiemodo INN
       - key: S3_ENDPOINT
         sync: false
       - key: S3_REGION

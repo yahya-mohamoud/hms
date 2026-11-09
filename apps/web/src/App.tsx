@@ -89,7 +89,7 @@ export default function App() {
             <Building2 size={18} />
           </div>
           <div>
-            <strong>Staywell</strong>
+            <strong>Jiemodo INN</strong>
             <small>HOTEL DESK</small>
           </div>
           <button

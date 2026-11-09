@@ -63,7 +63,7 @@ export function Login({ onLogin }: { onLogin: (user: User) => void }) {
           <div className="brand-mark">
             <Building2 size={18} />
           </div>{" "}
-          Staywell
+          Jiemodo INN
         </div>
         <div className="art-copy">
           <span className="eyebrow">A CALM START TO EVERY STAY</span>
@@ -90,7 +90,7 @@ export function Login({ onLogin }: { onLogin: (user: User) => void }) {
             <div className="brand-mark">
               <Building2 size={18} />
             </div>{" "}
-            Staywell
+            Jiemodo INN
           </div>
           <span className="eyebrow">HOTEL TEAM</span>
           <h2>
